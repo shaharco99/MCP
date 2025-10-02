@@ -11,9 +11,9 @@ from selenium.webdriver.chrome.options import Options
 
 mcp = FastMCP("DevOps Tools")
 
-# ======================================================
+# =============================
 # Utilities
-# ======================================================
+# =============================
 def run_cmd(cmd: str):
     """Run shell command and return stdout/stderr safely."""
     result = subprocess.run(cmd, capture_output=True, text=True, shell=True)
@@ -29,19 +29,45 @@ def docker_client():
     return docker.from_env()
 
 def load_kube():
-    """Load kubeconfig without starting Minikube."""
-    kube_path = os.path.expanduser("~/.kube/config")
+    """Load kubeconfig from default location depending on OS and return the current namespace."""
+    if platform.system() == "Windows":
+        kube_path = os.path.join(os.environ.get("USERPROFILE", ""), ".kube", "config")
+    else:
+        kube_path = os.path.expanduser("~/.kube/config")
+
     if not os.path.exists(kube_path):
         raise FileNotFoundError(f"Kubeconfig not found at {kube_path}")
+
     config.load_kube_config(config_file=kube_path)
-    _, active_context = config.list_kube_config_contexts()
+
+    # Get current context and namespace
+    contexts, active_context = config.list_kube_config_contexts()
     if active_context and "namespace" in active_context["context"]:
         return active_context["context"]["namespace"]
+    
     return "default"
 
-# ======================================================
+
+# =============================
+# Kubernetes Caching
+# =============================
+_k8s_cache = {"pods": {}, "namespaces": {}, "deployments": {}}
+_cache_lock = threading.Lock()
+
+def cached_k8s_fetch(kind, namespace=None, fetch_func=None, ttl=15):
+    ns = namespace or load_kube()
+    key = f"{kind}:{ns}"
+    with _cache_lock:
+        if key in _k8s_cache and time.time() - _k8s_cache[key]["timestamp"] < ttl:
+            return _k8s_cache[key]["data"]
+    data = fetch_func(ns) if fetch_func else []
+    with _cache_lock:
+        _k8s_cache[key] = {"data": data, "timestamp": time.time()}
+    return data
+
+# =============================
 # Docker Tools
-# ======================================================
+# =============================
 @mcp.tool()
 def docker_list_containers():
     cli = docker_client()
@@ -56,7 +82,6 @@ def docker_restart(name: str):
 
 @mcp.tool()
 def docker_build(path: str, tag: str):
-    """Run Docker build in background to avoid blocking MCP."""
     def _build():
         cli = docker_client()
         cli.images.build(path=path, tag=tag)
@@ -78,54 +103,56 @@ def docker_stop(name: str):
     container.stop()
     return f"🛑 Stopped {name}"
 
-# ======================================================
+# =============================
 # Minikube Tools
-# ======================================================
+# =============================
+def run_minikube_cmd(cmd: str):
+    return run_cmd(f"minikube {cmd}")
+
 @mcp.tool()
 def minikube_start():
-    """Start Minikube asynchronously to avoid blocking MCP."""
     def _start():
         subprocess.run("minikube start --driver=docker", shell=True)
     threading.Thread(target=_start).start()
-    return "⚡ Minikube start command triggered in background. Check status with minikube_status()."
+    return "⚡ Minikube start triggered in background"
 
 @mcp.tool()
 def minikube_stop():
-    return run_cmd("minikube stop")
+    return run_minikube_cmd("stop")
 
 @mcp.tool()
 def minikube_status():
-    return run_cmd("minikube status")
+    return run_minikube_cmd("status")
 
 @mcp.tool()
 def minikube_dashboard():
-    return run_cmd("minikube dashboard --url")
+    return run_minikube_cmd("dashboard --url")
 
-# ======================================================
+# =============================
 # Kubernetes Tools
-# ======================================================
-def retry_k8s(func, attempts=3, wait=5, *args, **kwargs):
-    for _ in range(attempts):
-        try:
-            return func(*args, **kwargs)
-        except Exception:
-            time.sleep(wait)
-    return ["❌ Failed after retries"]
-
+# =============================
 @mcp.tool()
 def k8s_list_namespaces():
-    load_kube()
-    return retry_k8s(lambda: [ns.metadata.name for ns in client.CoreV1Api().list_namespace().items])
+    return cached_k8s_fetch(
+        kind="namespaces",
+        fetch_func=lambda ns: [n.metadata.name for n in client.CoreV1Api().list_namespace().items]
+    )
 
 @mcp.tool()
 def k8s_list_pods(namespace: str = None):
-    ns = namespace or load_kube()
-    return retry_k8s(lambda: [p.metadata.name for p in client.CoreV1Api().list_namespaced_pod(ns).items])
+    return cached_k8s_fetch(
+        kind="pods",
+        namespace=namespace,
+        fetch_func=lambda ns: [p.metadata.name for p in client.CoreV1Api().list_namespaced_pod(ns).items]
+    )
 
 @mcp.tool()
 def k8s_list_deployments(namespace: str = None):
-    ns = namespace or load_kube()
-    return retry_k8s(lambda: [d.metadata.name for d in client.AppsV1Api().list_namespaced_deployment(ns).items])
+    return cached_k8s_fetch(
+        kind="deployments",
+        namespace=namespace,
+        fetch_func=lambda ns: [d.metadata.name for d in client.AppsV1Api().list_namespaced_deployment(ns).items]
+    )
 
 @mcp.tool()
 def k8s_scale_deployment(name: str, replicas: int, namespace: str = None):
@@ -136,9 +163,9 @@ def k8s_scale_deployment(name: str, replicas: int, namespace: str = None):
     threading.Thread(target=_scale).start()
     return f"⚡ Scaling deployment {name} triggered in background"
 
-# ======================================================
+# =============================
 # Helm Tools
-# ======================================================
+# =============================
 def run_helm_cmd(cmd: str):
     return run_cmd(f"helm {cmd}")
 
@@ -168,9 +195,9 @@ def helm_uninstall(release: str, namespace: str = "default"):
     threading.Thread(target=_uninstall).start()
     return f"⚡ Helm uninstall {release} triggered in background"
 
-# ======================================================
+# =============================
 # Selenium Tool
-# ======================================================
+# =============================
 @mcp.tool()
 def run_selenium_test(url: str):
     options = Options()
@@ -181,17 +208,17 @@ def run_selenium_test(url: str):
     driver.quit()
     return f"🌐 Page title: {title}"
 
-# ======================================================
+# =============================
 # Python Runner Tool
-# ======================================================
+# =============================
 @mcp.tool()
 def run_python_script(script: str):
     result = subprocess.run(["python", "-c", script], capture_output=True, text=True)
     return result.stdout if result.returncode == 0 else result.stderr
 
-# ======================================================
+# =============================
 # File Tools
-# ======================================================
+# =============================
 @mcp.tool()
 def read_file(path: str):
     with open(path, "r", encoding="utf-8") as f:
@@ -202,9 +229,9 @@ def write_file(path: str, content: str):
     with open(path, "w", encoding="utf-8") as f:
         return f"✅ File {path} updated."
 
-# ======================================================
+# =============================
 # Cluster Overview
-# ======================================================
+# =============================
 @mcp.tool()
 def cluster_overview():
     ns = load_kube()
@@ -226,8 +253,8 @@ def cluster_overview():
         f"🐋 Docker Containers: {', '.join(containers) if containers else '(none)'}"
     )
 
-# ======================================================
+# =============================
 # Run MCP Server
-# ======================================================
+# =============================
 if __name__ == "__main__":
     mcp.run(transport="http", host="0.0.0.0", port=8000)

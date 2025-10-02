@@ -2,7 +2,8 @@
     "mcpServers": {
         "local-server": {
             "url": "http://localhost:8000/mcp",
-            "description": "Local DevOps MCP server with Docker, Kubernetes, Minikube, Helm, Selenium and file tools"
+            "description": "Local DevOps MCP server with Docker, Kubernetes, Minikube, Helm, Selenium and file tools",
+            "toolTimeout": 120
         }
     },
     "providers": {
