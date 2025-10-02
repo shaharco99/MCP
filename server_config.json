@@ -1,12 +1,20 @@
 {
     "mcpServers": {
         "local-server": {
-            "url": "http://localhost:8000/mcp"
+            "url": "http://localhost:8000/mcp",
+            "description": "Local DevOps MCP server with Docker, Kubernetes, Minikube, Helm, Selenium and file tools"
         }
     },
     "providers": {
         "ollama": {
-            "url": "http://localhost:11434"
+            "url": "http://localhost:11434",
+            "description": "Local Ollama LLM provider for chat and prompts"
         }
+    },
+    "defaults": {
+        "server": "local-server",
+        "provider": "ollama",
+        "namespace": "default",
+        "docker_host": "npipe:////./pipe/docker_engine"
     }
 }

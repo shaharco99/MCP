@@ -9,10 +9,13 @@ services:
       # Give access to Docker on the host
       - /var/run/docker.sock:/var/run/docker.sock
       # Give access to kubeconfig (so MCP can talk to your cluster)
-      - ~/.kube:/root/.kube
+      - C:/Users/shahar/.kube:/root/.kube
+      # Mount Minikube data (certs/ca) so paths referenced by kubeconfig exist
+      - C:/Users/shahar/.minikube:/root/.minikube
       # Optional: mount for Selenium test artifacts/screenshots
       - ./selenium_results:/app/selenium_results
     environment:
       - PYTHONUNBUFFERED=1
+      - KUBECONFIG=/root/.kube/config.sanitized3
     extra_hosts:
       - "host.docker.internal:host-gateway"
