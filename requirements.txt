@@ -1,0 +1,10 @@
+mcp-server
+fastapi
+uvicorn
+docker
+kubernetes
+selenium
+pytest
+fastmcp
+mcp-client
+mcp-cli

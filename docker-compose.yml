@@ -1,0 +1,18 @@
+#### mcp-cli.exe --config-file server_config.json
+services:
+  mcp-server:
+    build: .
+    container_name: mcp-server
+    ports:
+      - "8000:8000"
+    volumes:
+      # Give access to Docker on the host
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Give access to kubeconfig (so MCP can talk to your cluster)
+      - ~/.kube:/root/.kube
+      # Optional: mount for Selenium test artifacts/screenshots
+      - ./selenium_results:/app/selenium_results
+    environment:
+      - PYTHONUNBUFFERED=1
+    extra_hosts:
+      - "host.docker.internal:host-gateway"

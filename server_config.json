@@ -1,0 +1,12 @@
+{
+    "mcpServers": {
+        "local-server": {
+            "url": "http://localhost:8000/mcp"
+        }
+    },
+    "providers": {
+        "ollama": {
+            "url": "http://localhost:11434"
+        }
+    }
+}
