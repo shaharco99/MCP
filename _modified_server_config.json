@@ -2,21 +2,112 @@
   "mcpServers": {
     "local-server": {
       "url": "http://localhost:8000/mcp",
-      "description": "Local DevOps MCP server with Docker, Kubernetes, Minikube, Helm, Selenium and file tools",
+      "description": "Local DevOps MCP server with tools",
       "singleResponsePerToolCall": true,
       "toolTimeout": 120
+    },
+    "kubernetes": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "kubernetes-mcp-server@latest"
+      ],
+      "env": {
+        "PYTHONWARNINGS": "ignore",
+        "LOG_LEVEL": "WARNING",
+        "CHUK_LOG_LEVEL": "WARNING",
+        "MCP_LOG_LEVEL": "WARNING"
+      }
+    },
+    "docker": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "docker-mcp-server@latest"
+      ],
+      "env": {
+        "PYTHONWARNINGS": "ignore",
+        "LOG_LEVEL": "WARNING",
+        "CHUK_LOG_LEVEL": "WARNING",
+        "MCP_LOG_LEVEL": "WARNING"
+      }
+    },
+    "git": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "git-mcp-server@latest"
+      ],
+      "env": {
+        "PYTHONWARNINGS": "ignore",
+        "LOG_LEVEL": "WARNING",
+        "CHUK_LOG_LEVEL": "WARNING",
+        "MCP_LOG_LEVEL": "WARNING"
+      }
+    },
+    "terraform": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "terraform-mcp-server@latest"
+      ],
+      "env": {
+        "PYTHONWARNINGS": "ignore",
+        "LOG_LEVEL": "WARNING",
+        "CHUK_LOG_LEVEL": "WARNING",
+        "MCP_LOG_LEVEL": "WARNING"
+      }
+    },
+    "selenium": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "selenium-mcp-server@latest"
+      ],
+      "env": {
+        "PYTHONWARNINGS": "ignore",
+        "LOG_LEVEL": "WARNING",
+        "CHUK_LOG_LEVEL": "WARNING",
+        "MCP_LOG_LEVEL": "WARNING"
+      }
+    },
+    "playwright": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "playwright-mcp-server@latest"
+      ],
+      "env": {
+        "PYTHONWARNINGS": "ignore",
+        "LOG_LEVEL": "WARNING",
+        "CHUK_LOG_LEVEL": "WARNING",
+        "MCP_LOG_LEVEL": "WARNING"
+      }
+    },
+    "cypress": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "cypress-mcp-server@latest"
+      ],
+      "env": {
+        "PYTHONWARNINGS": "ignore",
+        "LOG_LEVEL": "WARNING",
+        "CHUK_LOG_LEVEL": "WARNING",
+        "MCP_LOG_LEVEL": "WARNING"
+      }
     }
   },
   "providers": {
     "ollama": {
-      "url": "http://localhost:11434",
-      "description": "Local Ollama LLM provider for chat and prompts"
+      "description": "Local Ollama LLM provider for chat and prompts",
+      "baseUrl": "http://localhost:11434"
     }
   },
   "defaults": {
     "server": "local-server",
     "provider": "ollama",
-    "namespace": "default",
+    "namespace": "jenkins",
     "docker_host": "npipe:////./pipe/docker_engine"
   }
 }
