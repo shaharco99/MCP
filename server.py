@@ -2,10 +2,14 @@ import os
 import subprocess
 import platform
 import threading
+from typing import Optional
 from kubernetes import client, config
 from fastmcp import FastMCP
+from agents import MCPAgentOrchestrator
 
+# Initialize MCP server and agent orchestrator
 mcp = FastMCP("DevOps Tools")
+agent_orchestrator = MCPAgentOrchestrator()
 
 # =============================
 # Utilities
@@ -147,7 +151,53 @@ def cluster_overview():
     )
 
 # =============================
+# Agent Tools
+# =============================
+@mcp.tool()
+def run_agent_query(query: str):
+    """Run a query through the LangChain agent."""
+    import asyncio
+    result = asyncio.run(agent_orchestrator.run(query))
+    return result
+
+@mcp.tool()
+def list_agent_tools():
+    """List all tools available to the agent."""
+    return agent_orchestrator.get_tools_description()
+
+# =============================
 # Run MCP Server
 # =============================
 if __name__ == "__main__":
+    # Register MCP tools with agent orchestrator
+    agent_orchestrator.add_tool(
+        "minikube_start",
+        minikube_start,
+        "Start the minikube cluster with docker driver"
+    )
+    agent_orchestrator.add_tool(
+        "minikube_stop",
+        minikube_stop,
+        "Stop the minikube cluster"
+    )
+    agent_orchestrator.add_tool(
+        "minikube_status",
+        minikube_status,
+        "Get minikube cluster status"
+    )
+    agent_orchestrator.add_tool(
+        "kubectl",
+        kubectl,
+        "Run kubectl commands in minikube cluster. Args format: kubectl(namespace='default', args='get pods')"
+    )
+    agent_orchestrator.add_tool(
+        "cluster_overview",
+        cluster_overview,
+        "Get an overview of the Kubernetes cluster including namespaces and pods"
+    )
+    
+    # Initialize the agent
+    agent_orchestrator.initialize_agent()
+    
+    # Start MCP server
     mcp.run(transport="http", host="0.0.0.0", port=8000)

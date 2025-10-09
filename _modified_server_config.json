@@ -1,12 +1,14 @@
 {
   "mcpServers": {
     "local-server": {
+      "type": "stdio",
       "url": "http://localhost:8000/mcp",
       "description": "Local DevOps MCP server with tools",
       "singleResponsePerToolCall": true,
       "toolTimeout": 120
     },
     "kubernetes": {
+      "type": "stdio",
       "command": "npx",
       "args": [
         "-y",
@@ -19,20 +21,8 @@
         "MCP_LOG_LEVEL": "WARNING"
       }
     },
-    "docker": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "docker-mcp-server@latest"
-      ],
-      "env": {
-        "PYTHONWARNINGS": "ignore",
-        "LOG_LEVEL": "WARNING",
-        "CHUK_LOG_LEVEL": "WARNING",
-        "MCP_LOG_LEVEL": "WARNING"
-      }
-    },
     "git": {
+      "type": "stdio",
       "command": "npx",
       "args": [
         "-y",
@@ -46,6 +36,7 @@
       }
     },
     "terraform": {
+      "type": "stdio",
       "command": "npx",
       "args": [
         "-y",
@@ -58,25 +49,13 @@
         "MCP_LOG_LEVEL": "WARNING"
       }
     },
-    "selenium": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "selenium-mcp-server@latest"
-      ],
-      "env": {
-        "PYTHONWARNINGS": "ignore",
-        "LOG_LEVEL": "WARNING",
-        "CHUK_LOG_LEVEL": "WARNING",
-        "MCP_LOG_LEVEL": "WARNING"
-      }
-    },
     "playwright": {
+      "type": "stdio",
       "command": "npx",
       "args": [
-        "-y",
-        "playwright-mcp-server@latest"
+        "@playwright/mcp@latest"
       ],
+      "version": "0.0.1-seed",
       "env": {
         "PYTHONWARNINGS": "ignore",
         "LOG_LEVEL": "WARNING",
@@ -84,12 +63,14 @@
         "MCP_LOG_LEVEL": "WARNING"
       }
     },
-    "cypress": {
+    "code": {
+      "type": "stdio",
       "command": "npx",
       "args": [
         "-y",
-        "cypress-mcp-server@latest"
+        "filesystem-mcp-server@latest"
       ],
+      "description": "MCP server to browse, edit, and write files in the project",
       "env": {
         "PYTHONWARNINGS": "ignore",
         "LOG_LEVEL": "WARNING",

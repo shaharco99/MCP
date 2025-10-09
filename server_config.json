@@ -38,6 +38,15 @@
                 "@playwright/mcp@latest"
             ],
             "version": "0.0.1-seed"
+        },
+        "code": {
+            "type": "stdio",
+            "command": "npx",
+            "args": [
+                "-y",
+                "filesystem-mcp-server@latest"
+            ],
+            "description": "MCP server to browse, edit, and write files in the project"
         }
     },
     "providers": {

@@ -3,8 +3,11 @@ fastapi
 uvicorn
 docker
 kubernetes
-selenium
 pytest
 fastmcp
 mcp-client
 mcp-cli
+langchain
+langchain-community
+ollama
+python-dotenv
