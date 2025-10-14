@@ -63,14 +63,15 @@
         "MCP_LOG_LEVEL": "WARNING"
       }
     },
-    "code": {
+    "filesystem": {
       "type": "stdio",
       "command": "npx",
       "args": [
         "-y",
-        "filesystem-mcp-server@latest"
+        "@modelcontextprotocol/server-filesystem",
+        "C:/Users/shahar/Repos"
       ],
-      "description": "MCP server to browse, edit, and write files in the project",
+      "description": "Filesystem MCP server for read/write access to local repository",
       "env": {
         "PYTHONWARNINGS": "ignore",
         "LOG_LEVEL": "WARNING",
