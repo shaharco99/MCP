@@ -1,15 +1,17 @@
 import os
-import subprocess
 import platform
+import subprocess
 import threading
-from typing import Optional
-from kubernetes import client, config
+
 from fastmcp import FastMCP
+from kubernetes import client, config
+
 from agents import MCPAgentOrchestrator
 
 # Initialize MCP server and agent orchestrator
 mcp = FastMCP("DevOps Tools")
 agent_orchestrator = MCPAgentOrchestrator()
+
 
 # =============================
 # Utilities
@@ -21,7 +23,7 @@ def run_cmd(cmd: str):
         return f"❌ Command failed:\n{result.stderr}"
     return result.stdout.strip()
 
- 
+
 def load_kube():
     """Load kubeconfig from default location depending on OS and return the current namespace."""
     if platform.system() == "Windows":
@@ -38,7 +40,7 @@ def load_kube():
     contexts, active_context = config.list_kube_config_contexts()
     if active_context and "namespace" in active_context["context"]:
         return active_context["context"]["namespace"]
-    
+
     return "default"
 
 
@@ -48,20 +50,25 @@ def load_kube():
 def run_minikube_cmd(cmd: str):
     return run_cmd(f"minikube {cmd}")
 
+
 @mcp.tool()
 def minikube_start():
     def _start():
         subprocess.run("minikube start --driver=docker", shell=True)
+
     threading.Thread(target=_start).start()
     return "⚡ Minikube start triggered in background"
+
 
 @mcp.tool()
 def minikube_stop():
     return run_minikube_cmd("stop")
 
+
 @mcp.tool()
 def minikube_status():
     return run_minikube_cmd("status")
+
 
 @mcp.tool()
 def minikube_dashboard():
@@ -96,7 +103,7 @@ def run_shell(cmd: str):
         "minikube kubectl -- ",
         "docker ",
         "helm ",
-        "kubectl "
+        "kubectl ",
     ]
 
     if not any(cmd.strip().startswith(p) for p in allowed_prefixes):
@@ -107,6 +114,7 @@ def run_shell(cmd: str):
         return "❌ Unsafe characters in command"
 
     return run_cmd(cmd)
+
 
 # =============================
 # Python Runner Tool
@@ -143,6 +151,5 @@ def cluster_overview():
 # Run MCP Server
 # =============================
 if __name__ == "__main__":
-    
     # Start MCP server
     mcp.run(transport="http", host="0.0.0.0", port=8000)

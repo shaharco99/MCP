@@ -1,3 +1,4 @@
+---
 #### mcp-cli.exe --config-file server_config.json
 services:
   mcp-server:
