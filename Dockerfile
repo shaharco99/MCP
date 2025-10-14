@@ -1,24 +1,33 @@
-# Dockerfile
-FROM python:slim
+# Build-time Python version argument
+ARG PYTHONIMAGEVERSION=3.13-slim
+FROM python:${PYTHONIMAGEVERSION}
 
-# Install system dependencies (for Chrome + Selenium)
+# Prevent Python from writing pyc files and using stdout buffering
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
+# Install dependencies: Chrome
 RUN apt-get update && apt-get install -y \
-    curl unzip wget gnupg \
-    chromium chromium-driver \
+    curl unzip wget gnupg docker.io chromium chromium-driver \
     && rm -rf /var/lib/apt/lists/*
 
-# Setup working dir
+# Install kubectl
+RUN curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl" \
+    && install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl \
+    && rm kubectl
+
+# Set working directory
 WORKDIR /app
 
-# Copy requirements (for caching)
+# Copy requirements and install
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy source
+# Copy source code
 COPY . .
 
-# Expose port for MCP
+# Expose MCP server port
 EXPOSE 8000
 
-# Run MCP server
+# Default command
 CMD ["python", "server.py"]
