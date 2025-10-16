@@ -1,24 +1,24 @@
 # 🧩 Software Requirements Specification (SRS): **“LLM-CI”**
 
 ## **1. Introduction**
-**Purpose:**  
-A lightweight Python command-line tool that uses Large Language Models (LLMs) to review or improve code directly inside CI/CD pipelines.  
+**Purpose:**
+A lightweight Python command-line tool that uses Large Language Models (LLMs) to review or improve code directly inside CI/CD pipelines.
 
-**Scope:**  
-Runs in any CI/CD environment (e.g., Jenkins, GitLab CI, GitHub Actions).  
-It’s a console-based tool — no graphical interface required.  
-The goal is to help beginner DevOps engineers learn coding, automation, and the Software Development Life Cycle (SDLC).  
+**Scope:**
+Runs in any CI/CD environment (e.g., Jenkins, GitLab CI, GitHub Actions).
+It’s a console-based tool — no graphical interface required.
+The goal is to help beginner DevOps engineers learn coding, automation, and the Software Development Life Cycle (SDLC).
 
 ---
 
 ## **2. Overview**
-**Target User:**  
-DevOps engineers with basic Python skills who want to understand coding structure, configuration, and pipeline integration.  
+**Target User:**
+DevOps engineers with basic Python skills who want to understand coding structure, configuration, and pipeline integration.
 
-**Assumptions:**  
-- Python **3.8+** is installed.  
-- The user has API access to an LLM provider (e.g., OpenAI).  
-- Configuration is stored in a YAML file (`llm-ci.config.yaml`).  
+**Assumptions:**
+- Python **3.8+** is installed.
+- The user has API access to an LLM provider (e.g., OpenAI).
+- Configuration is stored in a YAML file (`llm-ci.config.yaml`).
 
 ---
 
