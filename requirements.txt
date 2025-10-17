@@ -9,6 +9,8 @@ mcp-cli
 mcp-client
 mcp-server
 ollama
+pre-commit
 pytest
 python-dotenv
+safety
 uvicorn
