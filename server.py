@@ -1,67 +1,73 @@
+from __future__ import annotations
+
 import os
 import platform
-import subprocess
-from fastmcp import FastMCP
-from kubernetes import client, config
-from kubernetes.client import Configuration
-import yaml
-import tempfile
 import re
-from dotenv import load_dotenv
+import shlex
+import subprocess
+import tempfile
 
-mcp = FastMCP("DevOps Tools")
+import yaml
+from dotenv import load_dotenv
+from fastmcp import FastMCP
+from kubernetes import client
+from kubernetes import config
+from kubernetes.client import Configuration
+
+mcp = FastMCP('DevOps Tools')
 
 
 # =============================
 # Utilities
 # =============================
 def run_cmd(cmd: str):
-    result = subprocess.run(cmd, capture_output=True, text=True, shell=True)
+    args = shlex.split(cmd)
+    result = subprocess.run(args, capture_output=True, text=True)
     if result.returncode != 0:
-        return f"❌ Command failed:\n{result.stderr}"
-    return result.stdout.strip()
+        print(f"Error: {result.stderr}")
+    return result.stdout
 
 
 def load_kube():
     load_dotenv()
-    home = os.environ.get("HOME") or os.path.expanduser("~")
-    is_windows = platform.system() == "Windows"
+    home = os.environ.get('HOME') or os.path.expanduser('~')
+    is_windows = platform.system() == 'Windows'
 
-    kube_path = os.environ.get("KUBECONFIG")
+    kube_path = os.environ.get('KUBECONFIG')
     if not kube_path:
         kube_path = (
-            os.path.join(os.environ.get("USERPROFILE", ""), ".kube", "config")
+            os.path.join(os.environ.get('USERPROFILE', ''), '.kube', 'config')
             if is_windows
-            else os.path.join(home, ".kube", "config")
+            else os.path.join(home, '.kube', 'config')
         )
 
     if not os.path.exists(kube_path):
         raise FileNotFoundError(f"Kubeconfig not found at {kube_path}")
 
-    with open(kube_path, "r") as f:
+    with open(kube_path, 'r') as f:
         kube_cfg = yaml.safe_load(f)
 
     if not is_windows:
-        for cluster in kube_cfg.get("clusters", []):
-            ca = cluster.get("cluster", {}).get("certificate-authority")
-            if ca and (ca.startswith("C:") or "\\" in ca):
-                cluster["cluster"]["certificate-authority"] = "/root/.minikube/ca.crt"
-            server = cluster.get("cluster", {}).get("server")
-            if server and "127.0.0.1" in server:
-                port = re.search(r":(\d+)$", server)
-                cluster["cluster"][
-                    "server"
-                ] = f"https://host.docker.internal:{port.group(1) if port else '8443'}"
+        for cluster in kube_cfg.get('clusters', []):
+            ca = cluster.get('cluster', {}).get('certificate-authority')
+            if ca and (ca.startswith('C:') or '\\' in ca):
+                cluster['cluster']['certificate-authority'] = '/root/.minikube/ca.crt'
+            server = cluster.get('cluster', {}).get('server')
+            if server and '127.0.0.1' in server:
+                port = re.search(r':(\d+)$', server)
+                cluster['cluster']['server'] = (
+                    f"https://host.docker.internal:{port.group(1) if port else '8443'}"
+                )
 
-        for user in kube_cfg.get("users", []):
-            for key in ["client-certificate", "client-key"]:
-                path = user.get("user", {}).get(key)
-                if path and (path.startswith("C:") or "\\" in path):
-                    user["user"][key] = path.replace(
-                        "C:\\Users\\shahar\\.minikube\\", "/root/.minikube/"
-                    ).replace("\\", "/")
+        for user in kube_cfg.get('users', []):
+            for key in ['client-certificate', 'client-key']:
+                path = user.get('user', {}).get(key)
+                if path and (path.startswith('C:') or '\\' in path):
+                    user['user'][key] = path.replace(
+                        'C:\\Users\\shahar\\.minikube\\', '/root/.minikube/'
+                    ).replace('\\', '/')
 
-        with tempfile.NamedTemporaryFile("w", delete=False) as tmp:
+        with tempfile.NamedTemporaryFile('w', delete=False) as tmp:
             yaml.safe_dump(kube_cfg, tmp)
             kube_path = tmp.name
 
@@ -75,9 +81,9 @@ def load_kube():
 
     contexts, active_context = config.list_kube_config_contexts()
     return (
-        active_context["context"]["namespace"]
-        if active_context and "namespace" in active_context["context"]
-        else "default"
+        active_context['context']['namespace']
+        if active_context and 'namespace' in active_context['context']
+        else 'default'
     )
 
 
@@ -85,27 +91,27 @@ def load_kube():
 # kubectl Tools
 # =============================
 @mcp.tool()
-def kubectl(namespace: str = None, args: str = "get namespaces"):
-    if any(tok in args for tok in [";", "|", ">", "<"]):
-        return "❌ Unsafe kubectl args detected"
-    ns_flag = f"-n {namespace}" if namespace else ""
+def kubectl(namespace: str = None, args: str = 'get namespaces'):
+    if any(tok in args for tok in [';', '|', '>', '<']):
+        return '❌ Unsafe kubectl args detected'
+    ns_flag = f"-n {namespace}" if namespace else ''
     cmd = f"kubectl {args} {ns_flag}".strip()
     return run_cmd(cmd)
 
 
 @mcp.tool()
 def run_shell(cmd: str):
-    allowed_prefixes = ["kubectl ", "docker ", "helm "]
+    allowed_prefixes = ['kubectl ', 'docker ', 'helm ']
     if not any(cmd.strip().startswith(p) for p in allowed_prefixes):
-        return "❌ Command not allowed"
-    if any(tok in cmd for tok in [";", "|", ">", "<"]):
-        return "❌ Unsafe characters in command"
+        return '❌ Command not allowed'
+    if any(tok in cmd for tok in [';', '|', '>', '<']):
+        return '❌ Unsafe characters in command'
     return run_cmd(cmd)
 
 
 @mcp.tool()
 def run_python_script(script: str):
-    result = subprocess.run(["python", "-c", script], capture_output=True, text=True)
+    result = subprocess.run(['python', '-c', script], capture_output=True, text=True)
     return result.stdout if result.returncode == 0 else result.stderr
 
 
@@ -131,5 +137,5 @@ def cluster_overview():
 # =============================
 # Run MCP Server
 # =============================
-if __name__ == "__main__":
-    mcp.run(transport="http", host="0.0.0.0", port=8000)
+if __name__ == '__main__':
+    mcp.run(transport='http', host='0.0.0.0', port=8000)

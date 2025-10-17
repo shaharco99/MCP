@@ -1,41 +1,248 @@
 ---
+# Source: https://pre-commit.com/hooks.html
+# pre-commit install
+# pre-commit autoupdate
+# pre-commit run --all-files --verbose
+# detect-secrets scan > .secrets.baseline
+# safety auth login
+
 default_stages: [pre-commit, pre-push]
 fail_fast: true
 
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.6.0
+    # name: pre-commit-hooks (out-of-the-box hooks for pre-commit)
+    rev: v6.0.0
     hooks:
-      - id: end-of-file-fixer
       - id: trailing-whitespace
-      - id: mixed-line-ending
-        args: ['--fix=lf']
-      - id: check-yaml
-      - id: check-json
+        description: Trims trailing whitespace.
+      - id: end-of-file-fixer
+        description: Makes sure files end in a newline and only a newline.
+        # exclude: .cache_ggshield
+      - id: double-quote-string-fixer
+        verbose: true
+      - id: debug-statements
+        verbose: true
+      - id: name-tests-test
+        verbose: true
+      - id: requirements-txt-fixer
+        verbose: true
       - id: check-added-large-files
-
-  - repo: https://github.com/adrienverge/yamllint.git
-    rev: v1.35.1
+        args: [--maxkb=10000]
+        verbose: true
+        log_file: "true"
+      - id: check-ast
+        verbose: true
+      - id: check-builtin-literals
+        verbose: true
+      - id: check-xml
+        verbose: true
+      - id: check-yaml
+        verbose: true
+        args: [--allow-multiple-documents]
+      - id: pretty-format-json
+        verbose: true
+        args: [--autofix]
+      - id: check-json
+        verbose: true
+      # - id: detect-aws-credentials
+      #   verbose: true
+      # - id: detect-private-key
+      #   verbose: true
+      #   exclude: gitleaks-report.json
+      - id: check-merge-conflict
+        verbose: true
+      - id: check-vcs-permalinks
+        verbose: true
+      - id: forbid-new-submodules
+        verbose: true
+      - id: no-commit-to-branch
+        verbose: true
+        args: [--branch, master]
+      - id: check-executables-have-shebangs
+        verbose: true
+      - id: mixed-line-ending
+        verbose: true
+        args: [--fix=lf]
+  - repo: https://github.com/Lucas-C/pre-commit-hooks
+    rev: v1.5.5
+    hooks:
+      - id: forbid-crlf
+        name: pre-commit-hooks (Lucas-C - useful git hooks)
+        verbose: true
+      - id: remove-crlf
+        description: Remove CRLF Line breaks
+        exclude: .pre-commit-config.yaml
+      - id: forbid-tabs
+        verbose: true
+      - id: remove-tabs
+        name: pre-commit-hooks (Lucas-C - useful git hooks)
+        verbose: true
+        args: [--whitespaces-count, "2"] # defaults to: 4
+  - repo: https://github.com/asottile/setup-cfg-fmt
+    rev: v3.1.0
+    hooks:
+      - id: setup-cfg-fmt
+        name: setup-cfg-fmt (apply a consistent format to setup.cfg files)
+  - repo: https://github.com/crate-ci/typos
+    rev: v1.38.1
+    hooks:
+      - id: typos
+        # - id: typos-docker
+        name: typos (Finds and corrects spelling mistakes)
+        args: ["--config", ".typos.toml", "-v"]
+        exclude: gitleaks-report.json|charts/|helm-template-example/
+  - repo: https://github.com/lyz-code/yamlfix/
+    rev: 1.18.0
+    hooks:
+      - id: yamlfix
+        exclude: charts/|helm-template/|.pre-commit-config.yaml|docker-compose.yml
+  - repo: https://github.com/adrienverge/yamllint
+    rev: v1.37.1
     hooks:
       - id: yamllint
-        args: ["--strict"]
-
-  - repo: https://github.com/psf/black
-    rev: 24.10.0
+        name: yamllint (linter for YAML files)
+        args: [--format, auto]
+        exclude: charts/|helm-template/|.pre-commit-config.yaml
+  - repo: https://github.com/PeterMosmans/jenkinslint
+    rev: v1.0.0
     hooks:
-      - id: black
+      - id: jenkinslint
+        name: jenkinslint (basic Jenkinsfile linter)
 
-  - repo: https://github.com/charliermarsh/ruff-pre-commit
-    rev: v0.6.9
+  - repo: https://github.com/pre-commit/pygrep-hooks
+    rev: v1.10.0
     hooks:
-      - id: ruff
-        args: ["--fix"]
+      - id: python-no-log-warn
+      - id: python-no-eval
+      - id: rst-backticks
+      - id: rst-directive-colons
+      - id: rst-inline-touching-normal
+      - id: text-unicode-replacement-char
+        name: pygrep-hooks (collection of fast, cheap, regex based pre-commit hooks.)
+  - repo: https://github.com/PyCQA/flake8
+    rev: 7.3.0
+    hooks:
+      - id: flake8
+        name: flake8 (Flake8 is a wrapper around these tools PyFlakes, pycodestyle, McCabe script)
+        exclude: server.py
+  - repo: https://github.com/PyCQA/bandit
+    rev: 1.8.6
+    hooks:
+      - id: bandit
+        name: bandit (security linter from PyCQA)
+        args: ["-s", "B404,B607,B603,B104"]
+  - repo: https://github.com/asottile/reorder-python-imports
+    rev: v3.16.0
+    hooks:
+      - id: reorder-python-imports
+        name: reorder-python-imports (Tool for automatically reordering python imports)
+        args: [--py39-plus, --add-import, from __future__ import annotations]
+        exclude: ^(pre_commit/resources/|testing/resources/python3_hooks_repo/)
+  - repo: https://github.com/twu/skjold
+    rev: v0.6.2
+    hooks:
+      - id: skjold
+        name: skjold (Security audit python project dependencies against several security advisory databases)
+        args: [--sources, pypa] # gemnasium|github|osv|pypa|pyup
 
-  - repo: https://github.com/codespell-project/codespell
-    rev: v2.3.0
+  - repo: https://github.com/hhatto/autopep8
+    rev: v2.3.2
     hooks:
-      - id: codespell
+      - id: autopep8
+        name: autopep8 (Style Guide Enforcement)
+  - repo: https://github.com/pryorda/dockerfilelint-precommit-hooks
+    rev: v0.1.0
+    hooks:
+      - id: dockerfilelint
+        name: dockerfilelint-precommit-hooks (Useful pre-commit hooks for checking Dockerfiles)
+        stages: [pre-commit]
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.5.0
+    hooks:
+      - id: detect-secrets
+        name: detect-secrets (module for detecting secrets)
         args:
-          - --skip="*.po,*.min.js"
-          - --ignore-words-list=nd,teh
-        files: "\\.(py|yml|yaml|md|txt|cfg|ini)$"
+          - --baseline
+          - .secrets.baseline
+          - --disable-plugin
+          - KeywordDetector
+        exclude: gitleaks-report.json|charts/|helm-template-example/
+  - repo: https://github.com/zricethezav/gitleaks
+    rev: v8.28.0
+    hooks:
+      - id: gitleaks
+        name: gitleaks
+        description: Gitleaks is for detecting and preventing hardcoded secrets
+        args: [--no-banner, --config=.gitleaks.toml]
+        exclude: .secrets.baseline
+  - repo: https://github.com/thoughtworks/talisman
+    rev: v1.37.0
+    hooks:
+      - id: talisman-commit
+        name: talisman (scans git to ensure that potential secrets or sensitive information)
+        entry: cmd --githook pre-commit
+        exclude: charts/.*|helm-template-example/.*
+
+  - repo: https://github.com/jumanjihouse/pre-commit-hooks
+    rev: 3.0.0
+    hooks:
+      - id: shfmt
+        args: [-l, -i, "2", -ci, -sr, -w]
+        verbose: true
+      - id: shellcheck
+        verbose: true
+
+  - repo: https://github.com/pre-commit/mirrors-prettier
+    rev: v4.0.0-alpha.8
+    hooks:
+      - id: prettier
+        # https://prettier.io/docs/en/options.html#parser
+        files: .json5$
+
+  - repo: https://github.com/antonbabenko/pre-commit-terraform
+    rev: v1.102.0
+    hooks:
+      - id: terraform_fmt
+        verbose: true
+        # args: [--hook-config=--parallelism-ci-cpu-cores=1]
+      - id: terraform_tflint
+        verbose: true
+      #   args: [--minimum-failure-severity=[notice,warning]]
+      # args: [--hook-config=--parallelism-ci-cpu-cores=1]
+      - id: terraform_validate
+        verbose: true
+      - id: terraform_trivy
+        verbose: true
+      # files: ^prd-infra/
+      - id: terraform_providers_lock
+        verbose: true
+        # args: [--hook-config=--parallelism-limit=CPU*4]
+      - id: terraform_checkov
+        verbose: true
+        # args: ["--config-file", ".checkov.yaml"]
+        # args: [--args=--quiet, --args=--skip-check CKV2_AWS_8]
+      # - id: terraform_tfsec
+      #   verbose: true
+      # - id: infracost_breakdown
+      #   verbose: true
+      #   args: [--args=--path=./env/dev]
+      # - id: infracost_breakdown
+      #   verbose: true
+      #   args:
+      #     - --args=--path=./env/dev
+      #     - --args=--terraform-var-file="terraform.tfvars"
+      #     - --args=--terraform-var-file="../terraform.tfvars"
+      - id: terraform_docs
+        verbose: true
+        args: [--args=--config=.terraform-docs.yml]
+
+  - repo: local
+    hooks:
+      - id: python-safety-dependencies-check
+        name: safety
+        entry: safety
+        args: [scan, --apply-fixes] # --full-report
+        language: system
+        files: requirements
+        stages: [pre-push]

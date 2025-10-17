@@ -7,7 +7,7 @@ ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
 # Install dependencies: Chrome
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     curl unzip wget gnupg docker.io chromium chromium-driver \
     && rm -rf /var/lib/apt/lists/*
 

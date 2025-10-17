@@ -1,13 +1,14 @@
-mcp-server
-fastapi
-uvicorn
+-i https://pkgs.safetycli.com/repository/home-e3a2a/project/mcp/pypi/simple/
+detect-secrets
 docker
-kubernetes
-pytest
+fastapi
 fastmcp
-mcp-client
-mcp-cli
+kubernetes
 langchain
-langchain-community
+mcp-cli
+mcp-client
+mcp-server
 ollama
+pytest
 python-dotenv
+uvicorn
