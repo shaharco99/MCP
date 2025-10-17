@@ -7,7 +7,7 @@
 # safety auth login
 
 default_stages: [pre-commit, pre-push]
-fail_fast: false
+fail_fast: true
 
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
@@ -64,15 +64,17 @@ repos:
       - id: mixed-line-ending
         verbose: true
         args: [--fix=lf]
+        exclude: .pre-commit-config.yaml|.safety-project.ini
   - repo: https://github.com/Lucas-C/pre-commit-hooks
     rev: v1.5.5
     hooks:
       - id: forbid-crlf
         name: pre-commit-hooks (Lucas-C - useful git hooks)
         verbose: true
+        exclude: .pre-commit-config.yaml|.safety-project.ini
       - id: remove-crlf
         description: Remove CRLF Line breaks
-        exclude: .pre-commit-config.yaml
+        exclude: .pre-commit-config.yaml|.safety-project.ini
       - id: forbid-tabs
         verbose: true
       - id: remove-tabs
@@ -96,14 +98,14 @@ repos:
     rev: 1.18.0
     hooks:
       - id: yamlfix
-        exclude: charts/|helm-template/|.pre-commit-config.yaml|docker-compose.yml
+        exclude: charts/|helm-template/|.pre-commit-config.yaml|docker-compose.yml|.safety-project.ini
   - repo: https://github.com/adrienverge/yamllint
     rev: v1.37.1
     hooks:
       - id: yamllint
         name: yamllint (linter for YAML files)
         args: [--format, auto]
-        exclude: charts/|helm-template/|.pre-commit-config.yaml
+        exclude: charts/|helm-template/|.pre-commit-config.yaml|docker-compose.yml|.safety-project.ini
   - repo: https://github.com/PeterMosmans/jenkinslint
     rev: v1.0.0
     hooks:
