@@ -1,8 +1,11 @@
 """
 Agent orchestration using LangChain + Ollama for MCP.
 """
+from __future__ import annotations
 
-from typing import Any, Dict, List
+from typing import Any
+from typing import Dict
+from typing import List
 
 from langchain.agents import initialize_agent
 from langchain.agents.types import AgentType
@@ -12,11 +15,11 @@ from langchain_ollama import OllamaLLM
 
 
 class MCPAgentOrchestrator:
-    def __init__(self, base_url: str = "http://localhost:11434"):
+    def __init__(self, base_url: str = 'http://localhost:11434'):
         """Initialize the agent orchestrator with Ollama."""
-        self.llm = OllamaLLM(base_url=base_url, model="gpt-oss:latest", temperature=0)
+        self.llm = OllamaLLM(base_url=base_url, model='gpt-oss:latest', temperature=0)
         self.memory = ConversationBufferMemory(
-            memory_key="chat_history", return_messages=True
+            memory_key='chat_history', return_messages=True
         )
         self.tools: List[Tool] = []
         self.agent = None
@@ -44,12 +47,12 @@ class MCPAgentOrchestrator:
 
         try:
             result = await self.agent.arun(query)
-            return {"status": "success", "result": result, "error": None}
+            return {'status': 'success', 'result': result, 'error': None}
         except Exception as e:
-            return {"status": "error", "result": None, "error": str(e)}
+            return {'status': 'error', 'result': None, 'error': str(e)}
 
     def get_tools_description(self) -> List[Dict[str, str]]:
         """Get a list of available tools."""
         return [
-            {"name": tool.name, "description": tool.description} for tool in self.tools
+            {'name': tool.name, 'description': tool.description} for tool in self.tools
         ]
