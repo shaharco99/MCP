@@ -247,4 +247,4 @@ repos:
         args: [scan, --apply-fixes] # --full-report
         language: system
         files: requirements
-        # stages: [pre-push]
+        stages: [pre-push]
