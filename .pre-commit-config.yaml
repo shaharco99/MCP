@@ -18,7 +18,7 @@ repos:
         description: Trims trailing whitespace.
       - id: end-of-file-fixer
         description: Makes sure files end in a newline and only a newline.
-        # exclude: .cache_ggshield
+        exclude: .safety-project.ini
       - id: double-quote-string-fixer
         verbose: true
       - id: debug-statements
@@ -247,4 +247,4 @@ repos:
         args: [scan, --apply-fixes] # --full-report
         language: system
         files: requirements
-        stages: [pre-push]
+        # stages: [pre-push]
