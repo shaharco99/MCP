@@ -8,49 +8,49 @@ repos:
     rev: v6.0.0
     hooks:
       - id: trailing-whitespace
-        description: Trims trailing whitespace.
+        stages: [pre-commit]
       - id: end-of-file-fixer
-        description: Makes sure files end in a newline and only a newline.
+        stages: [pre-commit]
         exclude: .safety-project.ini
       - id: double-quote-string-fixer
-        verbose: true
+        stages: [pre-commit]
       - id: debug-statements
-        verbose: true
+        stages: [pre-commit]
       - id: name-tests-test
-        verbose: true
+        stages: [pre-commit]
       - id: requirements-txt-fixer
-        verbose: true
+        stages: [pre-commit]
       - id: check-added-large-files
+        stages: [pre-commit]
         args: [--maxkb=10000]
-        verbose: true
         log_file: "true"
       - id: check-ast
-        verbose: true
+        stages: [pre-commit]
       - id: check-builtin-literals
-        verbose: true
+        stages: [pre-commit]
       - id: check-xml
-        verbose: true
+        stages: [pre-commit]
       - id: check-yaml
-        verbose: true
+        stages: [pre-commit]
         args: [--allow-multiple-documents]
       - id: pretty-format-json
-        verbose: true
+        stages: [pre-commit]
         args: [--autofix]
       - id: check-json
-        verbose: true
+        stages: [pre-commit]
       - id: check-merge-conflict
-        verbose: true
+        stages: [pre-commit]
       - id: check-vcs-permalinks
-        verbose: true
+        stages: [pre-commit]
       - id: forbid-new-submodules
-        verbose: true
+        stages: [pre-commit]
       - id: no-commit-to-branch
-        verbose: true
+        stages: [pre-commit]
         args: [--branch, master]
       - id: check-executables-have-shebangs
-        verbose: true
+        stages: [pre-commit]
       - id: mixed-line-ending
-        verbose: true
+        stages: [pre-commit]
         args: [--fix=lf]
         exclude: .pre-commit-config.yaml|.safety-project.ini
 
@@ -59,8 +59,7 @@ repos:
     rev: v1.5.5
     hooks:
       - id: remove-tabs
-        name: pre-commit-hooks (Lucas-C - useful git hooks)
-        verbose: true
+        stages: [pre-commit]
         args: [--whitespaces-count, "2"]
 
   # setup.cfg formatting
@@ -68,17 +67,20 @@ repos:
     rev: v3.1.0
     hooks:
       - id: setup-cfg-fmt
+        stages: [pre-commit]
 
   # YAML fixes & linting
   - repo: https://github.com/lyz-code/yamlfix/
     rev: 1.18.0
     hooks:
       - id: yamlfix
+        stages: [pre-commit]
         exclude: charts/|helm-template/|.pre-commit-config.yaml|docker-compose.yml|.safety-project.ini
   - repo: https://github.com/adrienverge/yamllint
     rev: v1.37.1
     hooks:
       - id: yamllint
+        stages: [pre-commit]
         args: [--format, auto]
         exclude: charts/|helm-template/|.pre-commit-config.yaml|docker-compose.yml|.safety-project.ini
 
@@ -87,6 +89,7 @@ repos:
     rev: v1.38.1
     hooks:
       - id: typos
+        stages: [pre-commit]
         args: ["--config", ".typos.toml", "-v"]
         exclude: gitleaks-report.json|charts/|helm-template-example/
 
@@ -95,39 +98,49 @@ repos:
     rev: v1.0.0
     hooks:
       - id: jenkinslint
+        stages: [pre-commit]
 
   # Python regex hooks
   - repo: https://github.com/pre-commit/pygrep-hooks
     rev: v1.10.0
     hooks:
       - id: python-no-log-warn
+        stages: [pre-commit]
       - id: python-no-eval
+        stages: [pre-commit]
       - id: rst-backticks
+        stages: [pre-commit]
       - id: rst-directive-colons
+        stages: [pre-commit]
       - id: rst-inline-touching-normal
+        stages: [pre-commit]
       - id: text-unicode-replacement-char
+        stages: [pre-commit]
 
   # Python format & lint order
   - repo: https://github.com/hhatto/autopep8
     rev: v2.3.2
     hooks:
       - id: autopep8
-        name: autopep8 (Style Guide Enforcement)
+        stages: [pre-commit]
   - repo: https://github.com/asottile/reorder-python-imports
     rev: v3.16.0
     hooks:
       - id: reorder-python-imports
+        stages: [pre-commit]
         args: [--py39-plus, --add-import, from __future__ import annotations]
         exclude: ^(pre_commit/resources/|testing/resources/python3_hooks_repo/)
   - repo: https://github.com/PyCQA/flake8
     rev: 7.3.0
     hooks:
       - id: flake8
+        stages: [pre-commit]
         exclude: server.py
   - repo: https://github.com/PyCQA/bandit
     rev: 1.8.6
     hooks:
       - id: bandit
+        stages: [pre-commit]
         args: ["-s", "B404,B607,B603,B104"]
 
   # Security / secrets
@@ -135,6 +148,7 @@ repos:
     rev: v1.5.0
     hooks:
       - id: detect-secrets
+        stages: [pre-commit]
         name: detect-secrets (module for detecting secrets)
         args:
           - --baseline
@@ -146,12 +160,14 @@ repos:
     rev: v8.28.0
     hooks:
       - id: gitleaks
+        stages: [pre-commit]
         args: [--no-banner, --config=.gitleaks.toml]
         exclude: .secrets.baseline
   - repo: https://github.com/thoughtworks/talisman
     rev: v1.37.0
     hooks:
       - id: talisman-commit
+        stages: [pre-commit]
         entry: cmd --githook pre-commit
         exclude: charts/.*|helm-template-example/.*
 
@@ -160,14 +176,17 @@ repos:
     rev: 3.0.0
     hooks:
       - id: shfmt
+        stages: [pre-commit]
         args: [-l, -i, "2", -ci, -sr, -w]
       - id: shellcheck
+        stages: [pre-commit]
 
   # Prettier for JSON5
   - repo: https://github.com/pre-commit/mirrors-prettier
     rev: v4.0.0-alpha.8
     hooks:
       - id: prettier
+        stages: [pre-commit]
         files: .json5$
 
   # Terraform
@@ -175,13 +194,20 @@ repos:
     rev: v1.102.0
     hooks:
       - id: terraform_fmt
+        stages: [pre-commit]
       - id: terraform_tflint
+        stages: [pre-commit]
       - id: terraform_validate
+        stages: [pre-commit]
       - id: terraform_trivy
+        stages: [pre-commit]
       - id: terraform_providers_lock
+        stages: [pre-commit]
       - id: terraform_checkov
+        stages: [pre-commit]
       - id: terraform_docs
-        args: [--args=--config=pre-commit/.terraform-docs.yml]
+        stages: [pre-commit]
+        args: [--args=--config=.terraform-docs.yml]
 
   # Local hooks
   - repo: local
