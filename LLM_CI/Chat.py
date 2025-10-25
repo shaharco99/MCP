@@ -4,7 +4,7 @@ import os
 
 from dotenv import load_dotenv
 from langchain_ollama import ChatOllama
-
+# TODO allow more chats with DevOps context like gimini https://python.langchain.com/docs/integrations/chat/
 load_dotenv()
 OllamaModel = os.getenv('OllamaModel')
 
