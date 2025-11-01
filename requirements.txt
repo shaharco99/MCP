@@ -5,11 +5,11 @@ fastapi
 fastmcp
 kubernetes
 langchain
+langchain-anthropic
 langchain-community
+langchain-google-genai
 langchain-ollama
 langchain-openai
-langchain-google-genai
-langchain-anthropic
 langchain_core
 mcp-cli
 mcp-server
