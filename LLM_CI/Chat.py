@@ -87,7 +87,7 @@ system_message = (
     'and best practices of CICD pipelines. Make your answers as short and simple as possible.'
 )
 
-print("DevOps Chat! Type 'exit' to quit.\n")
+print(f"DevOps Chat with {llm_provider}! Type 'exit' to quit.\n")
 
 # Initialize chat history with system message
 chat_history = [('system', system_message)]
