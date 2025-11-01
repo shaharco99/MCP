@@ -7,9 +7,11 @@ kubernetes
 langchain
 langchain-community
 langchain-ollama
+langchain-openai
+langchain-google-genai
+langchain-anthropic
 langchain_core
 mcp-cli
-mcp-client
 mcp-server
 ollama
 pre-commit
