@@ -5,12 +5,20 @@ fastapi
 fastmcp
 kubernetes
 langchain
+langchain-anthropic
+langchain-community
+langchain-google-genai
+langchain-ollama
+langchain-openai
+langchain_core
 mcp-cli
-mcp-client
 mcp-server
 ollama
 pre-commit
 pytest
 python-dotenv
 safety
+torch
+torchaudio --index-url https://download.pytorch.org/whl/cpu
+torchvision
 uvicorn
