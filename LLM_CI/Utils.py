@@ -4,7 +4,7 @@ import getpass
 import os
 import subprocess
 import sys
-import Tools
+from Tools import doc_loader
 
 # Load environment variables
 load_dotenv()
@@ -27,7 +27,7 @@ def get_api_key(provider):
             f.write(f"\n{provider}_API_KEY={key}")
     return key
 
-def get_llm_provider():
+def get_llm_provider(tools=None):
     # Get LLM provider from environment or user input
     llm_provider = os.getenv('LLM_PROVIDER', '').upper()
     valid_providers = ['OLLAMA', 'OPENAI', 'GOOGLE', 'ANTHROPIC']
@@ -44,8 +44,25 @@ def get_llm_provider():
     # Configure LLM based on provider
     if llm_provider == 'OLLAMA':
         from langchain_ollama import ChatOllama
+        import subprocess
+        
         model = os.getenv('OLLAMA_MODEL', 'llama2')
-        llm = ChatOllama(model=model, temperature=0).bind_tools([Tools.validate_info])
+        
+        # Check if model exists, if not pull it
+        try:
+            result = subprocess.run(['ollama', 'list'], capture_output=True, text=True, timeout=10)
+            if model not in result.stdout:
+                print(f"Model '{model}' not found locally. Pulling it now...")
+                subprocess.run(['ollama', 'pull', model], check=True, timeout=300)
+                print(f"Successfully pulled '{model}'")
+        except subprocess.TimeoutExpired:
+            print(f"Warning: Timeout checking/pulling Ollama model '{model}'")
+        except FileNotFoundError:
+            print("Warning: Ollama CLI not found. Make sure Ollama is installed and in PATH")
+        except Exception as e:
+            print(f"Warning: Could not verify/pull model: {str(e)}")
+        
+        llm = ChatOllama(model=model, temperature=0).bind_tools([doc_loader] if tools is None else tools)
 
     elif llm_provider == 'OPENAI':
         try:
@@ -56,7 +73,7 @@ def get_llm_provider():
 
         api_key = get_api_key('OPENAI')
         model = os.getenv('OPENAI_MODEL', 'gpt-3.5-turbo')
-        llm = ChatOpenAI(api_key=api_key, model=model, temperature=0)
+        llm = ChatOpenAI(api_key=api_key, model=model, temperature=0).bind_tools([doc_loader] if tools is None else tools)
 
     elif llm_provider == 'GOOGLE':
         try:
@@ -67,7 +84,7 @@ def get_llm_provider():
 
         api_key = get_api_key('GOOGLE')
         model = os.getenv('GOOGLE_MODEL', 'gemini-pro')
-        llm = ChatGoogleGenerativeAI(api_key=api_key, model=model, temperature=0)
+        llm = ChatGoogleGenerativeAI(api_key=api_key, model=model, temperature=0).bind_tools([doc_loader] if tools is None else tools)
 
     elif llm_provider == 'ANTHROPIC':
         try:
@@ -78,5 +95,5 @@ def get_llm_provider():
 
         api_key = get_api_key('ANTHROPIC')
         model = os.getenv('ANTHROPIC_MODEL', 'claude-2')
-        llm = ChatAnthropic(api_key=api_key, model=model, temperature=0)
+        llm = ChatAnthropic(api_key=api_key, model=model, temperature=0).bind_tools([doc_loader] if tools is None else tools)
     return llm

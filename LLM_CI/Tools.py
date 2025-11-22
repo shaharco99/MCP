@@ -1,40 +1,57 @@
 from __future__ import annotations
 
 import os
-from typing import List
+from typing import Optional
 
-from dotenv import load_dotenv
-from langchain_core.messages import AIMessage
+from langchain_community.document_loaders import PyPDFLoader
 from langchain_core.tools import tool
-from langchain_ollama import ChatOllama
-
-
-load_dotenv()
-OllamaModel = os.getenv('OllamaModel')
 
 
 @tool
-def validate_user(user_id: int, addresses: List[str]) -> bool:
-    """Validate user using historical addresses.
+def doc_loader(pdf_name: str, search_query: Optional[str] = None, line_number: Optional[int] = None) -> str:
+    """
+    Load and read/search a PDF file from the *current directory*.
 
     Args:
-        user_id (int): the user ID.
-        addresses (List[str]): Previous addresses as a list of strings.
+        pdf_name: Name of the PDF file (e.g. "file.pdf")
+        search_query: Optional text to search for
+        line_number: Optional specific line number to return
+
+    Returns:
+        str: The requested content or search results
     """
-    return True
+    try:
+        # Build full path in current folder
+        pdf_path = os.path.join(os.getcwd(), pdf_name)
 
+        # Load PDF
+        loader = PyPDFLoader(pdf_path)
+        pages = loader.load_and_split()
 
-llm = ChatOllama(
-    model={OllamaModel},
-    validate_model_on_init=True,
-    temperature=0,
-).bind_tools([validate_user])
+        # Return line number
+        if line_number is not None:
+            all_text = "\n".join(p.page_content for p in pages)
+            lines = all_text.splitlines()
+            if 1 <= line_number <= len(lines):
+                return lines[line_number - 1]
+            return f"Error: Line {line_number} not found"
 
-result = llm.invoke(
-    'Could you validate user 123? They previously lived at '
-    '123 Fake St in Boston MA and 234 Pretend Boulevard in '
-    'Houston TX.'
-)
+        # Search query
+        if search_query:
+            results = []
+            for i, page in enumerate(pages):
+                if search_query.lower() in page.page_content.lower():
+                    results.append(f"Page {i+1}:\n{page.page_content}")
 
-if isinstance(result, AIMessage) and result.tool_calls:
-    print(result.tool_calls)
+            if results:
+                return "\n\n".join(results)
+            return f"No results found for: {search_query}"
+
+        # Full content
+        return "\n".join(page.page_content for page in pages)
+
+    except FileNotFoundError:
+        return f"Error: PDF '{pdf_name}' not found in current directory"
+    except Exception as e:
+        return f"Error reading PDF: {e}"
+
