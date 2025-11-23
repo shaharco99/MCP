@@ -1,10 +1,11 @@
-from dotenv import load_dotenv
-
 import getpass
 import json
 import os
 import subprocess
 import sys
+
+from dotenv import load_dotenv
+
 from Tools import doc_loader
 
 try:
@@ -50,15 +51,21 @@ def get_llm_provider(tools=None):
         print('Please choose an LLM provider:')
         for i, provider in enumerate(valid_providers, 1):
             print(f"{i}. {provider}")
-        choice = int(input('Enter your choice (1-4): ')) - 1
-        llm_provider = valid_providers[choice]
+        try:
+            choice = int(input('Enter your choice (1-4): ')) - 1
+            if choice < 0 or choice >= len(valid_providers):
+                raise ValueError("Invalid choice")
+        except (ValueError, IndexError):
+            print("Invalid choice. Using default provider.", file=sys.stderr)
+            llm_provider = valid_providers[0]
+        else:
+            llm_provider = valid_providers[choice]
         with open('.env', 'a') as f:
             f.write(f"\nLLM_PROVIDER={llm_provider}")
 
     # Configure LLM based on provider
     if llm_provider == 'OLLAMA':
         from langchain_ollama import ChatOllama
-        import subprocess
         
         model = os.getenv('OLLAMA_MODEL', 'llama2')
         

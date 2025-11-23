@@ -46,8 +46,8 @@ def get_loader_for_file(file_path):
         # JSONLoader with simple schema - works for most JSON files
         try:
             return JSONLoader(file_path, jq_schema='.')
-        except:
-            # Fallback to TextLoader if JSONLoader fails
+        except Exception:
+            # Fallback to TextLoader if JSONLoader fails (e.g., invalid JSON schema)
             return TextLoader(file_path)
     elif ext == '.html' or ext == '.htm':
         return BSHTMLLoader(file_path)
