@@ -15,6 +15,7 @@ mcp-cli
 mcp-server
 ollama
 pre-commit
+pypdf
 pytest
 python-dotenv
 safety
@@ -22,4 +23,3 @@ torch
 torchaudio --index-url https://download.pytorch.org/whl/cpu
 torchvision
 uvicorn
-pypdf

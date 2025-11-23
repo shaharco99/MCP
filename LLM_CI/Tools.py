@@ -3,13 +3,11 @@ from __future__ import annotations
 import os
 from typing import Optional
 
-from langchain_community.document_loaders import (
-    PyPDFLoader,
-    TextLoader,
-    CSVLoader,
-    JSONLoader,
-    BSHTMLLoader,
-)
+from langchain_community.document_loaders import BSHTMLLoader
+from langchain_community.document_loaders import CSVLoader
+from langchain_community.document_loaders import JSONLoader
+from langchain_community.document_loaders import PyPDFLoader
+from langchain_community.document_loaders import TextLoader
 from langchain_core.tools import tool
 
 # Try to import optional loaders
@@ -35,7 +33,7 @@ except ImportError:
 def get_loader_for_file(file_path):
     """Return appropriate loader based on file extension."""
     ext = os.path.splitext(file_path)[1].lower()
-    
+
     if ext == '.pdf':
         return PyPDFLoader(file_path)
     elif ext == '.txt' or ext == '.md':
@@ -66,7 +64,7 @@ def get_loader_for_file(file_path):
 def doc_loader(file_name: str, search_query: Optional[str] = None, line_number: Optional[int] = None) -> str:
     """
     Load and read/search various file types from the *current directory*.
-    
+
     Supported file types:
     - PDF (.pdf)
     - Text (.txt, .md)
@@ -106,7 +104,7 @@ def doc_loader(file_name: str, search_query: Optional[str] = None, line_number: 
 
         # Return line number
         if line_number is not None:
-            all_text = "\n".join(doc.page_content for doc in documents)
+            all_text = '\n'.join(doc.page_content for doc in documents)
             lines = all_text.splitlines()
             if 1 <= line_number <= len(lines):
                 return lines[line_number - 1]
@@ -117,14 +115,14 @@ def doc_loader(file_name: str, search_query: Optional[str] = None, line_number: 
             results = []
             for i, doc in enumerate(documents):
                 if search_query.lower() in doc.page_content.lower():
-                    results.append(f"Section {i+1}:\n{doc.page_content}")
+                    results.append(f"Section {i + 1}:\n{doc.page_content}")
 
             if results:
-                return "\n\n".join(results)
+                return '\n\n'.join(results)
             return f"No results found for: {search_query}"
 
         # Full content
-        return "\n".join(doc.page_content for doc in documents)
+        return '\n'.join(doc.page_content for doc in documents)
 
     except FileNotFoundError:
         return f"Error: File '{file_name}' not found in current directory"
