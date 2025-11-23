@@ -1,111 +1,78 @@
 from __future__ import annotations
 
-import getpass
+import json
 import os
-import subprocess
 import sys
 
-from dotenv import load_dotenv
+from Utils import create_tool_message
+from Utils import execute_tool
+from Utils import extract_tool_info
+from Utils import get_llm_provider
+from Utils import normalize_args
+from Utils import system_message
 
-# Load environment variables
-load_dotenv()
-
-
-def install_package(package):
-    try:
-        subprocess.check_call([sys.executable, '-m', 'pip', 'install', '-q', package])
-        print(f"Successfully installed {package}")
-    except subprocess.CalledProcessError:
-        print(f"Failed to install {package}")
-        sys.exit(1)
-
-
-def get_api_key(provider):
-    key = os.environ.get(f"{provider}_API_KEY")
-    if not key:
-        key = getpass.getpass(f"Enter API key for {provider}: ")
-        with open('.env', 'a') as f:
-            f.write(f"\n{provider}_API_KEY={key}")
-    return key
-
-
-# Get LLM provider from environment or user input
+# Initialize
 llm_provider = os.getenv('LLM_PROVIDER', '').upper()
-valid_providers = ['OLLAMA', 'OPENAI', 'GOOGLE', 'ANTHROPIC']
+try:
+    llm = get_llm_provider()
+except Exception as e:
+    print(f"Error initializing LLM: {e}", file=sys.stderr)
+    sys.exit(1)
 
-if llm_provider not in valid_providers:
-    print('Please choose an LLM provider:')
-    for i, provider in enumerate(valid_providers, 1):
-        print(f"{i}. {provider}")
-    choice = int(input('Enter your choice (1-4): ')) - 1
-    llm_provider = valid_providers[choice]
-    with open('.env', 'a') as f:
-        f.write(f"\nLLM_PROVIDER={llm_provider}")
+print(f"DevOps Chat with {llm_provider}! Type 'exit' to quit.\n", file=sys.stderr)
 
-# Configure LLM based on provider
-if llm_provider == 'OLLAMA':
-    from langchain_ollama import ChatOllama
-    model = os.getenv('OLLAMA_MODEL', 'llama2')
-    llm = ChatOllama(model=model, temperature=0)
-
-elif llm_provider == 'OPENAI':
-    try:
-        from langchain_openai import ChatOpenAI
-    except ImportError:
-        install_package('langchain-openai')
-        from langchain_openai import ChatOpenAI
-
-    api_key = get_api_key('OPENAI')
-    model = os.getenv('OPENAI_MODEL', 'gpt-3.5-turbo')
-    llm = ChatOpenAI(api_key=api_key, model=model, temperature=0)
-
-elif llm_provider == 'GOOGLE':
-    try:
-        from langchain_google_genai import ChatGoogleGenerativeAI
-    except ImportError:
-        install_package('langchain-google-genai')
-        from langchain_google_genai import ChatGoogleGenerativeAI
-
-    api_key = get_api_key('GOOGLE')
-    model = os.getenv('GOOGLE_MODEL', 'gemini-pro')
-    llm = ChatGoogleGenerativeAI(api_key=api_key, model=model, temperature=0)
-
-elif llm_provider == 'ANTHROPIC':
-    try:
-        from langchain_anthropic import ChatAnthropic
-    except ImportError:
-        install_package('langchain-anthropic')
-        from langchain_anthropic import ChatAnthropic
-
-    api_key = get_api_key('ANTHROPIC')
-    model = os.getenv('ANTHROPIC_MODEL', 'claude-2')
-    llm = ChatAnthropic(api_key=api_key, model=model, temperature=0)
-
-# System message for context
-system_message = (
-    'You are a very technical assistant that is an expert in DevOps '
-    'and best practices of CICD pipelines. Make your answers as short and simple as possible.'
-)
-
-print(f"DevOps Chat with {llm_provider}! Type 'exit' to quit.\n")
-
-# Initialize chat history with system message
 chat_history = [('system', system_message)]
 
+# Main chat loop
 while True:
-    question = input('You: ')
-    if question.lower() in ['exit', 'quit']:
-        print('Exiting chat...')
+    try:
+        question = input('You: ')
+    except (EOFError, KeyboardInterrupt):
+        print('\nExiting chat...', file=sys.stderr)
         break
 
-    # Add human message to history
+    if question.lower() in ['exit', 'quit']:
+        print('Exiting chat...', file=sys.stderr)
+        break
+
     chat_history.append(('human', question))
 
-    # Invoke the model with full chat history
-    ai_msg = llm.invoke(chat_history)
+    # Loop until final response (allows multi-step tool execution chains)
+    while True:
+        try:
+            ai_msg = llm.invoke(chat_history)
+        except Exception as e:
+            print(f"Error invoking LLM: {e}", file=sys.stderr)
+            print('AI: (Error occurred, please try again)\n', file=sys.stdout)
+            break
 
-    # Add AI response to history
-    chat_history.append(('assistant', ai_msg.content))
+        chat_history.append(ai_msg)
 
-    # Print AI response
-    print(f"AI: {ai_msg.content}\n")
+        tool_calls = getattr(ai_msg, 'tool_calls', None) or []
+
+        if not tool_calls:
+            # Final response - send to stdout for proper output separation
+            if ai_msg.content:
+                print(f"AI: {ai_msg.content}\n")
+            break
+
+        # Execute tool calls
+        for tool_call in tool_calls:
+            try:
+                tool_name, tool_args, tool_id = extract_tool_info(tool_call)
+                tool_args = normalize_args(tool_args)
+
+                # Log tool usage to stderr (debugging/logging info)
+                params_str = json.dumps(tool_args) if tool_args else '{}'
+                print(f"tools in use: {tool_name} : parameters : {params_str}\n", file=sys.stderr)
+
+                # Execute tool and log output to stderr
+                result = execute_tool(tool_name, tool_args)
+                print(f"Output:\n{result}\n", file=sys.stderr)
+
+                # Add result to history
+                chat_history.append(create_tool_message(result, tool_id))
+            except Exception as e:
+                error_msg = f"Error parsing tool call: {e}"
+                print(f"Warning: {error_msg}\n", file=sys.stderr)
+                chat_history.append(create_tool_message(error_msg, None))

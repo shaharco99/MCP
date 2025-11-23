@@ -15,6 +15,7 @@ mcp-cli
 mcp-server
 ollama
 pre-commit
+pypdf
 pytest
 python-dotenv
 safety
