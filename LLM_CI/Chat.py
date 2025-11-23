@@ -12,8 +12,8 @@ except ImportError:
 system_message = (
     'You are a very technical assistant that is an expert in DevOps '
     'and best practices of CICD pipelines. Make your answers as short and simple as possible. '
-    'You have access to tools that can help you analyze PDF documents. '
-    'When asked about PDF contents, use the doc_loader tool to search through them.'
+    'You have access to tools that can help you analyze various file types (PDF, TXT, CSV, JSON, HTML, DOCX, PPTX, XLSX). '
+    'When asked about file contents, use the doc_loader tool to search through them.'
 )
 
 # Helper function to extract tool call info
