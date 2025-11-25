@@ -126,7 +126,7 @@ python LLM_CI/cli.py --prompt "Load config.json" --verbose
 #### Output Behavior
 - **Main response**: Printed to stdout (can be piped/redirected)
 - **Errors and verbose logs**: Printed to stderr (won't interfere with output)
-- **Exit codes**: 
+- **Exit codes**:
   - `0` on success
   - `1` on error (file not found, LLM error, etc.)
 
