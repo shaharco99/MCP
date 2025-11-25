@@ -79,7 +79,7 @@ Examples:
 
     # Process prompt and print result
     try:
-        response = process_prompt(prompt, llm, verbose=args.verbose)
+        response = process_prompt(prompt, llm, verbose=args.verbose, usage_mode='cli')
         print(response)
     except KeyboardInterrupt:
         print('\nInterrupted by user', file=sys.stderr)
