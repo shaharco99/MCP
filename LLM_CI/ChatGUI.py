@@ -3,10 +3,9 @@ from __future__ import annotations
 import os
 import sys
 from datetime import datetime
-from pathlib import Path
 
-from PyQt6.QtCore import Qt, pyqtSignal, QThread, QSize
-from PyQt6.QtGui import QColor, QFont, QIcon, QPixmap
+from PyQt6.QtCore import Qt, pyqtSignal, QThread, QSize, QEvent
+from PyQt6.QtGui import QColor, QFont, QAction
 from PyQt6.QtWidgets import (
     QApplication,
     QHBoxLayout,
@@ -14,16 +13,28 @@ from PyQt6.QtWidgets import (
     QLineEdit,
     QMainWindow,
     QPushButton,
-    QTextEdit,
     QVBoxLayout,
     QWidget,
     QScrollArea,
     QFileDialog,
+    QSizePolicy,
+    QFrame
 )
 
-from Utils import get_llm_provider, process_prompt, reset_chat_usage_log, system_message, execute_tool
+# -----------------------------------------------------------------------------
+# Mock Utils (Replace with your actual Utils.py imports)
+# -----------------------------------------------------------------------------
+try:
+    from Utils import get_llm_provider, process_prompt, reset_chat_usage_log, system_message
+except ImportError:
+    def get_llm_provider(): return None
+    def process_prompt(p, l, verbose, usage_mode): return f"Echo: {p}"
+    def reset_chat_usage_log(): pass
+    system_message = "You are a helpful DevOps assistant."
 
-
+# -----------------------------------------------------------------------------
+# WORKER THREAD
+# -----------------------------------------------------------------------------
 class Worker(QThread):
     finished = pyqtSignal(str)
     error = pyqtSignal(str)
@@ -40,245 +51,243 @@ class Worker(QThread):
         except Exception as exc:
             self.error.emit(str(exc))
 
-
-class MessageBubble(QWidget):
-    """Custom message bubble widget with timestamp and role styling."""
-    
-    def __init__(self, message: str, is_user: bool, timestamp: str = None, parent=None):
+# -----------------------------------------------------------------------------
+# UI COMPONENT: Message Bubble
+# -----------------------------------------------------------------------------
+class MessageBubble(QFrame):
+    def __init__(self, message: str, is_user: bool, timestamp: str, parent=None):
         super().__init__(parent)
-        self.is_user = is_user
-        #self.setMaximumWidth(700)  # Set max width for bubbles to allow wrapping
+        self.setFrameShape(QFrame.Shape.NoFrame)
         
-        layout = QVBoxLayout()
-        layout.setContentsMargins(10, 5, 10, 5)
+        # 1. Main Layout inside the bubble
+        self.layout = QVBoxLayout(self)
+        self.layout.setContentsMargins(12, 10, 12, 8) 
+        self.layout.setSpacing(4)
+
+        # 2. Text Label
+        self.text_label = QLabel(message)
+        self.text_label.setWordWrap(True)
+        self.text_label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        self.text_label.setOpenExternalLinks(True)
         
-        # Timestamp label
-        if timestamp:
-            ts_label = QLabel(timestamp)
-            ts_font = QFont()
-            ts_font.setPointSize(8)
-            ts_label.setFont(ts_font)
-            ts_label.setStyleSheet("color: #888;")
-            layout.addWidget(ts_label)
+        # Font Logic
+        font = QFont("Segoe UI", 10)
+        if "```" in message:
+            font = QFont("Consolas", 10) 
+            self.text_label.setStyleSheet("color: #333;")
+        self.text_label.setFont(font)
+
+        # 3. Timestamp Label
+        self.time_label = QLabel(timestamp)
+        self.time_label.setFont(QFont("Segoe UI", 8))
+        self.time_label.setAlignment(Qt.AlignmentFlag.AlignRight)
         
-        # Message text
-        text_label = QLabel(message)
-        text_label.setWordWrap(True)
-        text_label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
-        #text_label.setMinimumWidth(100)  # Ensure minimum width for proper wrapping
-        
-        msg_font = QFont()
-        msg_font.setPointSize(10)
-        text_label.setFont(msg_font)
-        
-        # Style based on role
+        ts_color = "#9dbd9e" if is_user else "#8faeb5"
+        self.time_label.setStyleSheet(f"color: {ts_color}; background: transparent;")
+
+        # Add to layout
+        self.layout.addWidget(self.text_label)
+        self.layout.addWidget(self.time_label)
+
+        # 4. Styling (Borders & Colors)
         if is_user:
-            # User message: blue background, white text, right-aligned
-            text_label.setStyleSheet(
-                """
-                QWidget {
-                    background-color: #d9fdd3;"
-                    "padding: 8px 12px; "
-                    "border-radius: 14px; "
-                }
-                """
-            )
-            layout.addWidget(text_label, alignment=Qt.AlignmentFlag.AlignRight)
+            bg = "#d9fdd3"  # WhatsApp Green
+            # Top-Left, Top-Right, Bottom-Right (Sharp), Bottom-Left
+            radius = "15px 15px 0px 15px" 
         else:
-            # Assistant message: light gray background, dark text, left-aligned
-            text_label.setStyleSheet(
-                "QWidget { "
-                "background-color: #e6e6e6; "
-                "color: #333; "
-                "padding: 8px 12px; "
-                "border-radius: 14px; "
-                "}"
-            )
-            layout.addWidget(text_label, alignment=Qt.AlignmentFlag.AlignLeft)
+            bg = "#ffffff"  # WhatsApp White
+            # Top-Left, Top-Right, Bottom-Right, Bottom-Left (Sharp)
+            # This makes the top corners round, matching the user look
+            radius = "15px 15px 15px 0px" 
+
+        self.setStyleSheet(f"""
+            MessageBubble {{
+                background-color: {bg};
+                border-radius: {radius};
+            }}
+            QLabel {{
+                background-color: transparent; 
+                border: none;
+            }}
+        """)
+
+# -----------------------------------------------------------------------------
+# UI COMPONENT: Message Row
+# -----------------------------------------------------------------------------
+class MessageRow(QWidget):
+    def __init__(self, message: str, is_user: bool, timestamp: str, parent=None):
+        super().__init__(parent)
+        self.layout = QHBoxLayout(self)
+        self.layout.setContentsMargins(0, 4, 0, 4) 
+        self.layout.setSpacing(0)
+
+        self.bubble = MessageBubble(message, is_user, timestamp)
         
-        self.setLayout(layout)
+        # CHANGE 1: Use 'Expanding' to encourage length over line breaks
+        self.bubble.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
 
+        if is_user:
+            self.layout.addStretch()    
+            self.layout.addWidget(self.bubble)
+        else:
+            self.layout.addWidget(self.bubble) 
+            self.layout.addStretch()    
 
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        if self.parent():
+            # CHANGE 2: Increased width limit to 85% to make messages longer
+            max_width = int(self.parent().width() * 0.85)
+            self.bubble.setMaximumWidth(max_width)
+
+# -----------------------------------------------------------------------------
+# MAIN WINDOW
+# -----------------------------------------------------------------------------
 class ChatWindow(QMainWindow):
     def __init__(self, llm):
         super().__init__()
         self.llm = llm
-        self.setWindowTitle('MCP — DevOps Chat Assistant')
-        self.resize(900, 700)
-        
-        # Set dark/light theme colors
-        self.setStyleSheet(
-            "QMainWindow { background-color: #f5f5f5; }"
-            "QLineEdit { padding: 8px; border: 1px solid #ddd; border-radius: 4px; }"
-            "QPushButton { padding: 8px 16px; background-color: #0078d4; color: white; "
-            "border: none; border-radius: 4px; font-weight: bold; }"
-            "QPushButton:hover { background-color: #005a9e; }"
-        )
-        
+        self.setWindowTitle('MCP — DevOps Chat')
+        self.resize(500, 750)
+
+        # Global Styles
+        self.setStyleSheet("""
+            QMainWindow { background-color: #efe7dd; }
+            QWidget#chat_container { background-color: #efe7dd; }
+            QScrollArea { border: none; background: #efe7dd; }
+            QLineEdit {
+                border: none; border-radius: 20px; 
+                padding: 10px 15px; background: white; font-size: 14px;
+            }
+        """)
+
         central = QWidget()
         self.setCentralWidget(central)
-        
-        main_layout = QVBoxLayout()
-        main_layout.setContentsMargins(10, 10, 10, 10)
-        main_layout.setSpacing(10)
-        
-        # Header
-        header = QLabel('💬 DevOps Chat Assistant')
-        header_font = QFont()
-        header_font.setPointSize(14)
-        header_font.setBold(True)
-        header.setFont(header_font)
-        main_layout.addWidget(header)
-        
-        # Scrollable chat view
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setStyleSheet("QScrollArea { border: 1px solid #ddd; border-radius: 4px; }")
+        main_vbox = QVBoxLayout(central)
+        main_vbox.setContentsMargins(0,0,0,0)
+        main_vbox.setSpacing(0)
+
+        # 1. Header
+        header = QFrame()
+        header.setStyleSheet("background-color: #008069;")
+        header.setFixedHeight(60)
+        h_layout = QHBoxLayout(header)
+        title = QLabel("💬 DevOps Assistant")
+        title.setStyleSheet("color: white; font-weight: bold; font-size: 16px;")
+        h_layout.addWidget(title)
+        main_vbox.addWidget(header)
+
+        # 2. Scroll Area
+        self.scroll = QScrollArea()
+        self.scroll.setWidgetResizable(True)
+        self.scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         
         self.chat_container = QWidget()
-        self.chat_layout = QVBoxLayout()
-        self.chat_layout.setSpacing(8)
-        self.chat_layout.addStretch()
-        self.chat_container.setLayout(self.chat_layout)
+        self.chat_container.setObjectName("chat_container")
         
-        scroll.setWidget(self.chat_container)
-        main_layout.addWidget(scroll)
+        self.chat_layout = QVBoxLayout(self.chat_container)
+        self.chat_layout.setContentsMargins(15, 15, 15, 15)
+        self.chat_layout.setSpacing(5) 
+        self.chat_layout.addStretch() 
+
+        self.scroll.setWidget(self.chat_container)
+        main_vbox.addWidget(self.scroll)
+
+        # 3. Input Area
+        input_frame = QFrame()
+        input_frame.setStyleSheet("background-color: #f0f0f0;")
+        input_layout = QHBoxLayout(input_frame)
+        input_layout.setContentsMargins(10, 8, 10, 8)
         
-        # Input area
-        input_layout = QHBoxLayout()
-        input_layout.setSpacing(5)
-        
-        self.input = QLineEdit()
-        self.input.setPlaceholderText('Type your message or ask to review/load a file...')
-        self.input.returnPressed.connect(self.on_send)
-        input_layout.addWidget(self.input)
-        
-        # Upload file button
-        self.upload_btn = QPushButton('📎 Upload')
+        self.upload_btn = QPushButton("📎")
+        self.upload_btn.setFixedSize(40, 40)
+        self.upload_btn.setFlat(True)
         self.upload_btn.clicked.connect(self.on_upload_file)
-        input_layout.addWidget(self.upload_btn)
         
-        # Send button
-        self.send_btn = QPushButton('Send')
+        self.input_field = QLineEdit()
+        self.input_field.setPlaceholderText("Type a message...")
+        self.input_field.returnPressed.connect(self.on_send)
+        
+        self.send_btn = QPushButton("➤")
+        self.send_btn.setFixedSize(40, 40)
+        self.send_btn.setStyleSheet("""
+            QPushButton { background: #008069; color: white; border-radius: 20px; font-weight: bold;}
+            QPushButton:hover { background: #006b58; }
+        """)
         self.send_btn.clicked.connect(self.on_send)
+
+        input_layout.addWidget(self.upload_btn)
+        input_layout.addWidget(self.input_field)
         input_layout.addWidget(self.send_btn)
-        
-        main_layout.addLayout(input_layout)
-        
-        central.setLayout(main_layout)
-        
-        # Initialize chat
+        main_vbox.addWidget(input_frame)
+
+        # 4. Initialize System
         reset_chat_usage_log()
-        self.append_system_message()
-        self.input.setFocus()
+        self.add_chat_bubble(system_message, is_user=False) 
 
-    def append_system_message(self):
-        """Display the system message (guidance) on startup."""
-        bubble = MessageBubble(system_message, is_user=False, timestamp=self.get_timestamp())
-        self.chat_layout.removeItem(self.chat_layout.itemAt(self.chat_layout.count() - 1))
-        self.chat_layout.addWidget(bubble)
-        self.chat_layout.addStretch()
-        self.scroll_to_bottom()
-
-    def append_user(self, text: str):
-        """Add user message bubble."""
-        bubble = MessageBubble(text, is_user=True, timestamp=self.get_timestamp())
-        self.chat_layout.removeItem(self.chat_layout.itemAt(self.chat_layout.count() - 1))
-        self.chat_layout.addWidget(bubble)
-        self.chat_layout.addStretch()
-        self.scroll_to_bottom()
-
-    def append_ai(self, text: str):
-        """Add assistant message bubble."""
-        bubble = MessageBubble(text, is_user=False, timestamp=self.get_timestamp())
-        self.chat_layout.removeItem(self.chat_layout.itemAt(self.chat_layout.count() - 1))
-        self.chat_layout.addWidget(bubble)
-        self.chat_layout.addStretch()
+    # -------------------------------------------------------------------------
+    # UNIFIED MESSAGE SYSTEM
+    # -------------------------------------------------------------------------
+    def add_chat_bubble(self, text: str, is_user: bool):
+        ts = datetime.now().strftime('%H:%M')
+        row = MessageRow(text, is_user, ts, parent=self.chat_container)
+        self.chat_layout.addWidget(row)
+        QApplication.processEvents()
         self.scroll_to_bottom()
 
     def scroll_to_bottom(self):
-        """Scroll chat view to the bottom."""
-        scroll_area = self.findChild(QScrollArea)
-        if scroll_area:
-            scroll_area.verticalScrollBar().setValue(
-                scroll_area.verticalScrollBar().maximum()
-            )
+        scrollbar = self.scroll.verticalScrollBar()
+        scrollbar.setValue(scrollbar.maximum())
 
-    def get_timestamp(self) -> str:
-        """Return formatted timestamp."""
-        return datetime.now().strftime('%H:%M:%S')
-
+    # -------------------------------------------------------------------------
+    # EVENT HANDLERS
+    # -------------------------------------------------------------------------
     def on_send(self):
-        """Handle send button click or Return key."""
-        prompt = self.input.text().strip()
-        if not prompt:
+        text = self.input_field.text().strip()
+        if not text:
             return
         
-        self.append_user(prompt)
-        self.input.clear()
-        self.input.setDisabled(True)
+        self.add_chat_bubble(text, is_user=True)
+        self.input_field.clear()
+        self.input_field.setDisabled(True)
         self.send_btn.setDisabled(True)
-        self.upload_btn.setDisabled(True)
-        
-        # Start worker thread
-        self.worker = Worker(prompt, self.llm)
+
+        self.worker = Worker(text, self.llm)
         self.worker.finished.connect(self.on_response)
         self.worker.error.connect(self.on_error)
         self.worker.start()
 
     def on_response(self, response: str):
-        """Handle LLM response."""
-        self.append_ai(response)
-        self.input.setDisabled(False)
+        self.add_chat_bubble(response, is_user=False)
+        self.input_field.setDisabled(False)
         self.send_btn.setDisabled(False)
-        self.upload_btn.setDisabled(False)
-        self.input.setFocus()
+        self.input_field.setFocus()
 
     def on_error(self, err: str):
-        """Handle error from LLM."""
-        self.append_ai(f"⚠️ Error: {err}")
-        self.input.setDisabled(False)
+        self.add_chat_bubble(f"Error: {err}", is_user=False)
+        self.input_field.setDisabled(False)
         self.send_btn.setDisabled(False)
-        self.upload_btn.setDisabled(False)
 
     def on_upload_file(self):
-        """Handle file upload button click."""
-        file_path, _ = QFileDialog.getOpenFileName(
-            self,
-            'Select a file to load',
-            os.getcwd(),
-            'All Files (*);;Python Files (*.py);;Text Files (*.txt);;PDF Files (*.pdf);;CSV Files (*.csv);;JSON Files (*.json)'
-        )
-        
-        if not file_path:
-            return
-        
-        file_name = os.path.basename(file_path)
-        
-        # Auto-detect file type and construct default message
-        if file_name.endswith('.py'):
-            default_prompt = f"Review the code in {file_name} and suggest improvements."
-        else:
-            default_prompt = f"Load and summarize the contents of {file_name}."
-        
-        # Show upload confirmation and populate input field (don't auto-send)
-        self.append_user(f"📁 Uploaded: {file_name}")
-        self.input.setText(default_prompt)
-        self.input.setFocus()
-        # Move cursor to end of input so user can add more text
-        self.input.end(False)
+        file_path, _ = QFileDialog.getOpenFileName(self, "Select File")
+        if file_path:
+            filename = os.path.basename(file_path)
+            self.add_chat_bubble(f"📎 Uploaded: {filename}", is_user=True)
+            self.input_field.setText(f"Analyze the file {filename}...")
+            self.input_field.setFocus()
 
-
+# -----------------------------------------------------------------------------
+# APP ENTRY
+# -----------------------------------------------------------------------------
 def run_gui():
-    """Initialize and run the PyQt6 GUI application."""
-    llm = get_llm_provider()
-    
     app = QApplication(sys.argv)
-    w = ChatWindow(llm)
-    w.show()
-    sys.exit(app.exec())
+    font = QFont("Segoe UI", 9)
+    app.setFont(font)
 
+    llm = get_llm_provider()
+    window = ChatWindow(llm)
+    window.show()
+    sys.exit(app.exec())
 
 if __name__ == '__main__':
     run_gui()
-
