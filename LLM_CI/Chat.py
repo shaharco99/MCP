@@ -15,6 +15,16 @@ from Utils import system_message
 
 # Initialize
 llm_provider = os.getenv('LLM_PROVIDER', '').upper()
+# If user requested GUI, try launching it and exit the CLI
+if '--gui' in sys.argv:
+    try:
+        from ChatGUI import run_gui
+        run_gui()
+        sys.exit(0)
+    except Exception as e:
+        print(f"GUI start error: {e}", file=sys.stderr)
+        # Fall back to CLI
+
 try:
     llm = get_llm_provider()
 except Exception as e:

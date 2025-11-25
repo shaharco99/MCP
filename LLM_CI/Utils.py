@@ -30,16 +30,24 @@ CHAT_LOG_FILE = _LOG_DIR / 'chat_usage.jsonl'
 
 # System message
 system_message = (
+    '=== Assistant Guidance ===\n\n'
     'You are a DevOps and CI/CD expert assistant. Provide concise, actionable technical guidance.\n\n'
 
-    'When users reference files or ask about file contents, use the doc_loader tool to read:\n'
-    'PDF, TXT, MD, CSV, JSON, HTML, DOCX, PPTX, XLSX files from the current directory.\n'
-    'if file is .py use code_reviewer and suggest code improvments\n'
+    'Supported File Tools:\n'
+    '- doc_loader: Read PDF, TXT, MD, CSV, JSON, HTML, DOCX, PPTX, XLSX files from current directory\n'
+    '- code_reviewer: Analyze Python (.py) files for code quality (only specify file_name, no other parameters)\n\n'
 
-    'Guidelines:\n'
-    '- Automatically load and analyze relevant files before answering\n'
+    'Usage Instructions:\n'
+    '1. When users reference files, automatically use the appropriate tool to load/review them\n'
+    '2. For Python files (.py), use code_reviewer with ONLY the file_name parameter (e.g., {"file_name": "ChatGUI.py"})\n'
+    '3. For other files, use doc_loader to extract content\n'
+    '4. For code_reviewer, do NOT pass line_number or scope - let it do a full review\n\n'
+
+    'Response Guidelines:\n'
     '- Keep responses brief and focused on practical solutions\n'
-    '- Use structured formatting (lists, code blocks) for clarity'
+    '- Use structured formatting (lists, code blocks) for clarity\n'
+    '- Provide actionable recommendations\n'
+    '- Always load and analyze relevant files before answering'
 )
 
 
@@ -265,6 +273,11 @@ def execute_tool(tool_name, tool_args):
             return doc_loader.invoke(tool_args)
         except Exception as e:
             return f"Error executing doc_loader: {e}"
+    elif tool_name == 'code_reviewer':
+        try:
+            return code_reviewer.invoke(tool_args)
+        except Exception as e:
+            return f"Error executing code_reviewer: {e}"
     return f"Unknown tool: {tool_name}"
 
 
