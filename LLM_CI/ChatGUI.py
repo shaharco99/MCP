@@ -55,7 +55,7 @@ class Worker(QThread):
 # UI COMPONENT: Message Bubble
 # -----------------------------------------------------------------------------
 class MessageBubble(QFrame):
-    def __init__(self, message: str, is_user: bool, timestamp: str, parent=None):
+    def __init__(self, message: str, is_user: bool, timestamp: str, date_tooltip: str = None, parent=None):
         super().__init__(parent)
         self.setFrameShape(QFrame.Shape.NoFrame)
         
@@ -82,6 +82,10 @@ class MessageBubble(QFrame):
         self.time_label.setFont(QFont("Segoe UI", 8))
         self.time_label.setAlignment(Qt.AlignmentFlag.AlignRight)
         
+        # Set the Date Tooltip
+        if date_tooltip:
+            self.time_label.setToolTip(date_tooltip)
+        
         ts_color = "#9dbd9e" if is_user else "#8faeb5"
         self.time_label.setStyleSheet(f"color: {ts_color}; background: transparent;")
 
@@ -97,7 +101,6 @@ class MessageBubble(QFrame):
         else:
             bg = "#ffffff"  # WhatsApp White
             # Top-Left, Top-Right, Bottom-Right, Bottom-Left (Sharp)
-            # This makes the top corners round, matching the user look
             radius = "15px 15px 15px 0px" 
 
         self.setStyleSheet(f"""
@@ -109,21 +112,28 @@ class MessageBubble(QFrame):
                 background-color: transparent; 
                 border: none;
             }}
+            /* Optional: Make tooltip look nice */
+            QToolTip {{
+                background-color: #333;
+                color: white;
+                border: 1px solid #333;
+            }}
         """)
 
 # -----------------------------------------------------------------------------
 # UI COMPONENT: Message Row
 # -----------------------------------------------------------------------------
 class MessageRow(QWidget):
-    def __init__(self, message: str, is_user: bool, timestamp: str, parent=None):
+    def __init__(self, message: str, is_user: bool, timestamp: str, date_tooltip: str = None, parent=None):
         super().__init__(parent)
         self.layout = QHBoxLayout(self)
         self.layout.setContentsMargins(0, 4, 0, 4) 
         self.layout.setSpacing(0)
 
-        self.bubble = MessageBubble(message, is_user, timestamp)
+        # Pass date_tooltip down to bubble
+        self.bubble = MessageBubble(message, is_user, timestamp, date_tooltip)
         
-        # CHANGE 1: Use 'Expanding' to encourage length over line breaks
+        # Use 'Expanding' to encourage length over line breaks
         self.bubble.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
 
         if is_user:
@@ -136,7 +146,7 @@ class MessageRow(QWidget):
     def resizeEvent(self, event):
         super().resizeEvent(event)
         if self.parent():
-            # CHANGE 2: Increased width limit to 85% to make messages longer
+            # Width limit 85%
             max_width = int(self.parent().width() * 0.85)
             self.bubble.setMaximumWidth(max_width)
 
@@ -229,8 +239,12 @@ class ChatWindow(QMainWindow):
     # UNIFIED MESSAGE SYSTEM
     # -------------------------------------------------------------------------
     def add_chat_bubble(self, text: str, is_user: bool):
-        ts = datetime.now().strftime('%H:%M')
-        row = MessageRow(text, is_user, ts, parent=self.chat_container)
+        now = datetime.now()
+        ts = now.strftime('%H:%M')
+        # Full date for the tooltip (e.g. "Tuesday, November 25, 2025")
+        dt_tooltip = now.strftime('%A, %B %d, %Y')
+        
+        row = MessageRow(text, is_user, ts, dt_tooltip, parent=self.chat_container)
         self.chat_layout.addWidget(row)
         QApplication.processEvents()
         self.scroll_to_bottom()
