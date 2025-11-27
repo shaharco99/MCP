@@ -12,7 +12,8 @@ from typing import Dict
 from typing import Optional
 
 from dotenv import load_dotenv
-from Tools import doc_loader, code_reviewer
+from Tools import code_reviewer
+from Tools import doc_loader
 
 try:
     from langchain_core.messages import ToolMessage
@@ -39,7 +40,7 @@ system_message = (
 
     'Usage Instructions:\n'
     '1. When users reference files, automatically use the appropriate tool to load/review them\n'
-    '2. For Python files (.py), use code_reviewer with ONLY the file_name parameter (e.g., {"file_name": "ChatGUI.py"})\n'
+    '2. For Python files (.py), use doc_loader and then if needed use code_reviewer with ONLY the file_name parameter (e.g., {"file_name": "ChatGUI.py"})\n'
     '3. For other files, use doc_loader to extract content\n'
     '4. For code_reviewer, do NOT pass line_number or scope - let it do a full review\n\n'
 

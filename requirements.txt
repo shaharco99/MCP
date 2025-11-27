@@ -14,8 +14,10 @@ langchain_core
 mcp-cli
 mcp-server
 ollama
+PathSpec
 pre-commit
 pypdf
+PyQt6
 pytest
 python-dotenv
 safety
@@ -23,4 +25,3 @@ torch
 torchaudio --index-url https://download.pytorch.org/whl/cpu
 torchvision
 uvicorn
-PyQt6
