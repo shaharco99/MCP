@@ -3,15 +3,10 @@ from __future__ import annotations
 import ast
 import os
 import re
-from typing import List
-from typing import Optional
+from typing import List, Optional
 
 from langchain.tools import tool
-from langchain_community.document_loaders import BSHTMLLoader
-from langchain_community.document_loaders import CSVLoader
-from langchain_community.document_loaders import JSONLoader
-from langchain_community.document_loaders import PyPDFLoader
-from langchain_community.document_loaders import TextLoader
+from langchain_community.document_loaders import BSHTMLLoader, CSVLoader, JSONLoader, PyPDFLoader, TextLoader
 from pathspec import PathSpec
 
 # Optional loaders

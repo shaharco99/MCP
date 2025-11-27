@@ -123,13 +123,23 @@ repos:
     hooks:
       - id: autopep8
         stages: [pre-commit]
-  - repo: https://github.com/asottile/reorder-python-imports
-    rev: v3.16.0
+  - repo: https://github.com/pycqa/isort
+    rev: 5.13.2
     hooks:
-      - id: reorder-python-imports
-        stages: [pre-commit]
-        args: [--py39-plus, --add-import, from __future__ import annotations]
-        exclude: ^(pre_commit/resources/|testing/resources/python3_hooks_repo/)
+      - id: isort
+        name: isort (no-split)
+        args: ["--settings-path=."]
+  - repo: https://github.com/PyCQA/autoflake
+    rev: v2.3.1
+    hooks:
+      - id: autoflake
+        name: autoflake (remove unused imports)
+        args:
+          - --in-place
+          - --remove-all-unused-imports
+          - --remove-unused-variables
+          - --expand-star-imports
+          - --ignore-init-module-imports
   - repo: https://github.com/PyCQA/flake8
     rev: 7.3.0
     hooks:
