@@ -27,9 +27,15 @@ from PyQt6.QtWidgets import (
 try:
     from Utils import get_llm_provider, process_prompt, reset_chat_usage_log, system_message
 except ImportError:
-    def get_llm_provider(): return None
-    def process_prompt(p, l, verbose, usage_mode): return f"Echo: {p}"
-    def reset_chat_usage_log(): pass
+    def get_llm_provider():
+        return None
+
+    def process_prompt(prompt, llm, verbose, usage_mode):
+        return f"Echo: {prompt}"
+
+    def reset_chat_usage_log():
+        pass
+
     system_message = 'You are a helpful DevOps assistant.'
 
 # -----------------------------------------------------------------------------

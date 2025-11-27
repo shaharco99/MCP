@@ -147,8 +147,7 @@ def doc_loader(
 
     if len(matches) > 1:
         return (
-            'Error: Multiple files found. Please specify a more exact filename:\n\n'
-            + '\n'.join(matches)
+            'Error: Multiple files found. Please specify a more exact filename:\n\n\n'.join(matches)
         )
 
     file_path = matches[0]
@@ -218,8 +217,7 @@ def code_reviewer(
 
     if len(matches) > 1:
         return (
-            'Error: Multiple .py files found matching that name:\n\n'
-            + '\n'.join(matches)
+            'Error: Multiple .py files found matching that name:\n\n\n'.join(matches)
         )
 
     file_path = matches[0]
@@ -237,7 +235,7 @@ def code_reviewer(
         lines = source.splitlines()
         if 1 <= line_number <= len(lines):
             return lines[line_number - 1]
-        return f"Error: Line number out of range"
+        return 'Error: Line number out of range'
 
     issues = []
 
