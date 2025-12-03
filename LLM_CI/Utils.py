@@ -13,6 +13,20 @@ from dotenv import load_dotenv
 from Tools import code_reviewer, doc_loader
 
 try:
+    from database_tools import (
+        generate_and_preview_query,
+        execute_database_query,
+        get_database_schema,
+        close_db_connection
+    )
+    DATABASE_TOOLS_AVAILABLE = True
+except ImportError:
+    DATABASE_TOOLS_AVAILABLE = False
+    generate_and_preview_query = None
+    execute_database_query = None
+    get_database_schema = None
+
+try:
     from langchain_core.messages import ToolMessage
 except ImportError:
     ToolMessage = None
@@ -31,17 +45,23 @@ system_message = (
     '=== Assistant Guidance ===\n\n'
     'You are a DevOps and CI/CD expert assistant. Provide concise, actionable technical guidance.\n\n'
 
-    'Supported File Tools:\n'
+    'Supported Tools:\n'
     '- doc_loader: Read PDF, TXT, MD, CSV, JSON, HTML, DOCX, PPTX, XLSX files from current directory\n'
-    '- code_reviewer: Analyze Python (.py) files for code quality (only specify file_name, no other parameters)\n\n'
-
-    'Usage Instructions:\n'
+    '- code_reviewer: Analyze Python (.py) files for code quality\n'
+    + ('- get_database_schema: Retrieve database structure and table information\n'
+       '- generate_and_preview_query: Generate SQL queries for user review (ALWAYS use before execute_database_query)\n'
+       '- execute_database_query: Execute approved SQL queries and return results\n' if DATABASE_TOOLS_AVAILABLE else '')
+    +
+    '\nUsage Instructions:\n'
     '1. When users reference files, automatically use the appropriate tool to load/review them\n'
-    '2. For Python files (.py), use doc_loader and then if needed use code_reviewer with ONLY the file_name parameter (e.g., {"file_name": "ChatGUI.py"})\n'
+    '2. For Python files (.py), use doc_loader and then if needed use code_reviewer with ONLY the file_name parameter\n'
     '3. For other files, use doc_loader to extract content\n'
-    '4. For code_reviewer, do NOT pass line_number or scope - let it do a full review\n\n'
-
-    'Response Guidelines:\n'
+    + ('4. For database queries: first call get_database_schema to see tables, then generate_and_preview_query to show the user\n'
+       '5. Wrap final SQL queries in <sql_query>...</sql_query> tags\n'
+       '6. The user must approve before execution - handle execution only after user confirmation\n'
+       '7. After execution, results can be exported to PDF\n' if DATABASE_TOOLS_AVAILABLE else '')
+    +
+    '\nResponse Guidelines:\n'
     '- Keep responses brief and focused on practical solutions\n'
     '- Use structured formatting (lists, code blocks) for clarity\n'
     '- Provide actionable recommendations\n'
@@ -174,6 +194,12 @@ def get_llm_provider(tools=None):
         with open('.env', 'a') as f:
             f.write(f"\nLLM_PROVIDER={llm_provider}")
 
+    # Build default tools list
+    if tools is None:
+        tools = [doc_loader, code_reviewer]
+        if DATABASE_TOOLS_AVAILABLE:
+            tools.extend([generate_and_preview_query, execute_database_query, get_database_schema])
+
     # Configure LLM based on provider
     if llm_provider == 'OLLAMA':
         from langchain_ollama import ChatOllama
@@ -194,7 +220,7 @@ def get_llm_provider(tools=None):
         except Exception as e:
             print(f"Warning: Could not verify/pull model: {str(e)}")
 
-        llm = ChatOllama(model=model, temperature=0).bind_tools([doc_loader, code_reviewer] if tools is None else tools)
+        llm = ChatOllama(model=model, temperature=0).bind_tools(tools)
 
     elif llm_provider == 'OPENAI':
         try:
@@ -205,7 +231,7 @@ def get_llm_provider(tools=None):
 
         api_key = get_api_key('OPENAI')
         model = os.getenv('OPENAI_MODEL', 'gpt-3.5-turbo')
-        llm = ChatOpenAI(api_key=api_key, model=model, temperature=0).bind_tools([doc_loader, code_reviewer] if tools is None else tools)
+        llm = ChatOpenAI(api_key=api_key, model=model, temperature=0).bind_tools(tools)
 
     elif llm_provider == 'GOOGLE':
         try:
@@ -216,7 +242,7 @@ def get_llm_provider(tools=None):
 
         api_key = get_api_key('GOOGLE')
         model = os.getenv('GOOGLE_MODEL', 'gemini-pro')
-        llm = ChatGoogleGenerativeAI(api_key=api_key, model=model, temperature=0).bind_tools([doc_loader, code_reviewer] if tools is None else tools)
+        llm = ChatGoogleGenerativeAI(api_key=api_key, model=model, temperature=0).bind_tools(tools)
 
     elif llm_provider == 'ANTHROPIC':
         try:
@@ -227,7 +253,7 @@ def get_llm_provider(tools=None):
 
         api_key = get_api_key('ANTHROPIC')
         model = os.getenv('ANTHROPIC_MODEL', 'claude-2')
-        llm = ChatAnthropic(api_key=api_key, model=model, temperature=0).bind_tools([doc_loader, code_reviewer] if tools is None else tools)
+        llm = ChatAnthropic(api_key=api_key, model=model, temperature=0).bind_tools(tools)
     return llm
 
 
@@ -276,6 +302,21 @@ def execute_tool(tool_name, tool_args):
             return code_reviewer.invoke(tool_args)
         except Exception as e:
             return f"Error executing code_reviewer: {e}"
+    elif tool_name == 'get_database_schema' and DATABASE_TOOLS_AVAILABLE:
+        try:
+            return get_database_schema.invoke(tool_args)
+        except Exception as e:
+            return f"Error executing get_database_schema: {e}"
+    elif tool_name == 'generate_and_preview_query' and DATABASE_TOOLS_AVAILABLE:
+        try:
+            return generate_and_preview_query.invoke(tool_args)
+        except Exception as e:
+            return f"Error executing generate_and_preview_query: {e}"
+    elif tool_name == 'execute_database_query' and DATABASE_TOOLS_AVAILABLE:
+        try:
+            return execute_database_query.invoke(tool_args)
+        except Exception as e:
+            return f"Error executing execute_database_query: {e}"
     return f"Unknown tool: {tool_name}"
 
 
@@ -310,6 +351,14 @@ def process_prompt(prompt, llm, verbose=False, output_stream=None, usage_mode: O
             chat_history.append(ai_msg)
 
             tool_calls = getattr(ai_msg, 'tool_calls', None) or []
+            
+            # Debug: Log what we got from the LLM
+            if verbose:
+                print(f"DEBUG: ai_msg type: {type(ai_msg)}", file=output_stream)
+                print(f"DEBUG: ai_msg.content: {ai_msg.content[:200] if hasattr(ai_msg, 'content') else 'N/A'}", file=output_stream)
+                print(f"DEBUG: tool_calls count: {len(tool_calls)}", file=output_stream)
+                if tool_calls:
+                    print(f"DEBUG: tool_calls: {tool_calls}", file=output_stream)
 
             if not tool_calls:
                 # Final response

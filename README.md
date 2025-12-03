@@ -1,7 +1,26 @@
 
 # LLM CI Tools
 
-The `LLM_CI/` directory contains AI-powered DevOps assistant tools that can analyze files and provide technical guidance.
+The `LLM_CI/` directory contains AI-powered DevOps assistant tools that can analyze files, provide technical guidance, and query databases.
+
+## 🆕 Database Query Feature
+
+**NEW!** Your AI assistant can now answer questions about your database directly!
+
+- **Natural language queries**: Ask questions like "Show me customers from the USA"
+- **Automatic SQL generation**: The AI generates appropriate SQL queries
+- **Safe execution**: User must approve each query before it runs
+- **Multiple databases**: SQLite, PostgreSQL, and MySQL supported
+- **PDF export**: Generate professional reports with results
+
+**Quick start**: 
+```bash
+python quick_start_database.py
+python LLM_CI/Chat.py
+# Then ask: "Show me all customers from the USA"
+```
+
+📖 **Documentation**: See [GETTING_STARTED_DATABASE.md](GETTING_STARTED_DATABASE.md) for complete setup and usage guide.
 
 ### Chat.py - Interactive Chat Interface
 

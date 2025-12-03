@@ -25,3 +25,7 @@ torch
 torchaudio --index-url https://download.pytorch.org/whl/cpu
 torchvision
 uvicorn
+reportlab
+psycopg2-binary
+mysql-connector-python
+pyodbc
