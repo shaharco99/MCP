@@ -13,19 +13,19 @@ langchain-openai
 langchain_core
 mcp-cli
 mcp-server
+mysql-connector-python
 ollama
 PathSpec
 pre-commit
+psycopg2-binary
+pyodbc
 pypdf
 PyQt6
 pytest
 python-dotenv
+reportlab
 safety
 torch
 torchaudio --index-url https://download.pytorch.org/whl/cpu
 torchvision
 uvicorn
-reportlab
-psycopg2-binary
-mysql-connector-python
-pyodbc

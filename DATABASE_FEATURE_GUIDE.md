@@ -124,9 +124,9 @@ You: How many orders did each customer place?
 
 The agent will create a query like:
 ```sql
-SELECT customer_id, customer_name, COUNT(*) as order_count 
-FROM orders 
-GROUP BY customer_id, customer_name 
+SELECT customer_id, customer_name, COUNT(*) as order_count
+FROM orders
+GROUP BY customer_id, customer_name
 ORDER BY order_count DESC
 ```
 
@@ -138,7 +138,7 @@ You: Show me all employees hired in 2023 earning more than $60,000
 
 The agent will generate:
 ```sql
-SELECT * FROM employees 
+SELECT * FROM employees
 WHERE YEAR(hire_date) = 2023 AND salary > 60000
 ORDER BY salary DESC
 ```
@@ -151,9 +151,9 @@ You: Show me each order with the customer name and total amount
 
 The agent will create a JOIN query:
 ```sql
-SELECT o.order_id, c.customer_name, o.order_date, o.total_amount 
-FROM orders o 
-JOIN customers c ON o.customer_id = c.customer_id 
+SELECT o.order_id, c.customer_name, o.order_date, o.total_amount
+FROM orders o
+JOIN customers c ON o.customer_id = c.customer_id
 ORDER BY o.order_date DESC
 ```
 
@@ -173,7 +173,7 @@ Proposed SQL Query:
 SELECT * FROM employees WHERE salary > 50000 ORDER BY salary DESC
 --------------------------------------------------------------------------------
 
-Execute this query? (yes/no/cancel): 
+Execute this query? (yes/no/cancel):
 ```
 
 - **Type `yes` or `y`** to execute

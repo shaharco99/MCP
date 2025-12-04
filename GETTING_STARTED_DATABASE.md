@@ -379,16 +379,16 @@ AI: Executes both queries in sequence
 
 ## ✨ Key Capabilities
 
-✅ Natural language database queries  
-✅ Automatic SQL generation  
-✅ User approval before execution  
-✅ SQL injection prevention  
-✅ Multiple database support (SQLite, PostgreSQL, MySQL)  
-✅ Beautiful PDF export with formatting  
-✅ Automatic PDF viewer integration  
-✅ ASCII table display  
-✅ Query result metadata (timestamp, row count)  
-✅ Complex query support (JOINs, aggregations, filtering)  
+✅ Natural language database queries
+✅ Automatic SQL generation
+✅ User approval before execution
+✅ SQL injection prevention
+✅ Multiple database support (SQLite, PostgreSQL, MySQL)
+✅ Beautiful PDF export with formatting
+✅ Automatic PDF viewer integration
+✅ ASCII table display
+✅ Query result metadata (timestamp, row count)
+✅ Complex query support (JOINs, aggregations, filtering)
 
 ## 📞 Support
 

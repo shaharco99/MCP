@@ -13,7 +13,7 @@ The `LLM_CI/` directory contains AI-powered DevOps assistant tools that can anal
 - **Multiple databases**: SQLite, PostgreSQL, and MySQL supported
 - **PDF export**: Generate professional reports with results
 
-**Quick start**: 
+**Quick start**:
 ```bash
 python quick_start_database.py
 python LLM_CI/Chat.py

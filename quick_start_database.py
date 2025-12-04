@@ -8,24 +8,25 @@ with a simple SQLite example database.
 import json
 import os
 import sqlite3
+import sys
 from pathlib import Path
 
 # Add LLM_CI to path
 llm_ci_path = Path(__file__).parent / 'LLM_CI'
-import sys
 sys.path.insert(0, str(llm_ci_path))
+
 
 def create_sample_database():
     """Create a sample SQLite database with sample data for testing."""
     db_path = 'sample_database.db'
-    
+
     # Remove existing database
     if os.path.exists(db_path):
         os.remove(db_path)
-    
+
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
-    
+
     # Create tables
     cursor.execute('''
     CREATE TABLE customers (
@@ -37,7 +38,7 @@ def create_sample_database():
         is_active INTEGER
     )
     ''')
-    
+
     cursor.execute('''
     CREATE TABLE orders (
         id INTEGER PRIMARY KEY,
@@ -48,7 +49,7 @@ def create_sample_database():
         FOREIGN KEY (customer_id) REFERENCES customers(id)
     )
     ''')
-    
+
     cursor.execute('''
     CREATE TABLE products (
         id INTEGER PRIMARY KEY,
@@ -58,7 +59,7 @@ def create_sample_database():
         stock INTEGER
     )
     ''')
-    
+
     # Insert sample data - Customers
     customers = [
         (1, 'Alice Johnson', 'alice@example.com', 'USA', '2023-01-15', 1),
@@ -68,7 +69,7 @@ def create_sample_database():
         (5, 'Eve Davis', 'eve@example.com', 'USA', '2023-04-05', 1),
     ]
     cursor.executemany('INSERT INTO customers VALUES (?, ?, ?, ?, ?, ?)', customers)
-    
+
     # Insert sample data - Orders
     orders = [
         (1, 1, '2023-06-01', 250.00, 'completed'),
@@ -80,7 +81,7 @@ def create_sample_database():
         (7, 2, '2023-08-10', 200.00, 'processing'),
     ]
     cursor.executemany('INSERT INTO orders VALUES (?, ?, ?, ?, ?)', orders)
-    
+
     # Insert sample data - Products
     products = [
         (1, 'Laptop', 'Electronics', 999.99, 5),
@@ -90,10 +91,10 @@ def create_sample_database():
         (5, 'Coffee Maker', 'Appliances', 49.99, 15),
     ]
     cursor.executemany('INSERT INTO products VALUES (?, ?, ?, ?, ?)', products)
-    
+
     conn.commit()
     conn.close()
-    
+
     print(f"✓ Sample database created: {db_path}")
     return db_path
 
@@ -101,14 +102,14 @@ def create_sample_database():
 def setup_db_config():
     """Create db_config.json for the sample database."""
     config = {
-        "type": "sqlite",
-        "database": "sample_database.db"
+        'type': 'sqlite',
+        'database': 'sample_database.db'
     }
-    
+
     with open('db_config.json', 'w') as f:
         json.dump(config, f, indent=2)
-    
-    print("✓ Database configuration created: db_config.json")
+
+    print('✓ Database configuration created: db_config.json')
 
 
 def example_queries():
@@ -155,43 +156,43 @@ TIP: Be conversational! The AI understands business language like
 
 
 def main():
-    print("="*80)
-    print("DATABASE FEATURE - QUICK START EXAMPLE")
-    print("="*80)
-    
+    print('=' * 80)
+    print('DATABASE FEATURE - QUICK START EXAMPLE')
+    print('=' * 80)
+
     # Step 1: Create sample database
-    print("\n[1/3] Setting up sample database...")
+    print('\n[1/3] Setting up sample database...')
     db_path = create_sample_database()
-    
+
     # Step 2: Create configuration
-    print("\n[2/3] Creating database configuration...")
+    print('\n[2/3] Creating database configuration...')
     setup_db_config()
-    
+
     # Step 3: Show instructions
-    print("\n[3/3] Ready to use!")
-    print("\n" + "="*80)
-    print("NEXT STEPS:")
-    print("="*80)
-    print("\n1. Run the chat interface:")
-    print("   python LLM_CI/Chat.py")
-    print("\n2. Or use the GUI:")
-    print("   python LLM_CI/ChatGUI.py")
-    print("\n3. Try asking database questions!")
-    
-    print("\n" + "="*80)
-    print("DATABASE INFORMATION:")
-    print("="*80)
+    print('\n[3/3] Ready to use!')
+    print('\n' + '=' * 80)
+    print('NEXT STEPS:')
+    print('=' * 80)
+    print('\n1. Run the chat interface:')
+    print('   python LLM_CI/Chat.py')
+    print('\n2. Or use the GUI:')
+    print('   python LLM_CI/ChatGUI.py')
+    print('\n3. Try asking database questions!')
+
+    print('\n' + '=' * 80)
+    print('DATABASE INFORMATION:')
+    print('=' * 80)
     print(f"Database file: {db_path}")
-    print("\nTables:")
-    print("  - customers (id, name, email, country, created_date, is_active)")
-    print("  - orders (id, customer_id, order_date, total_amount, status)")
-    print("  - products (id, name, category, price, stock)")
-    
+    print('\nTables:')
+    print('  - customers (id, name, email, country, created_date, is_active)')
+    print('  - orders (id, customer_id, order_date, total_amount, status)')
+    print('  - products (id, name, category, price, stock)')
+
     example_queries()
-    
-    print("\n" + "="*80)
-    print("For detailed documentation, see: DATABASE_FEATURE_GUIDE.md")
-    print("="*80)
+
+    print('\n' + '=' * 80)
+    print('For detailed documentation, see: DATABASE_FEATURE_GUIDE.md')
+    print('=' * 80)
 
 
 if __name__ == '__main__':

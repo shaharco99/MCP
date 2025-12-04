@@ -4,7 +4,7 @@ import os
 import sys
 from datetime import datetime
 
-from PyQt6.QtCore import Qt, QThread, pyqtSignal, QTimer
+from PyQt6.QtCore import Qt, QThread, QTimer, pyqtSignal
 from PyQt6.QtGui import QFont
 from PyQt6.QtWidgets import (
     QApplication,
@@ -70,14 +70,14 @@ class Worker(QThread):
             # Handle both return formats: (response, history) or just response
             if isinstance(result, tuple):
                 response, updated_history = result
-                # Emit both response and updated history
-                self.thinking_stopped.emit()
-            self.finished.emit(response)
                 # Store the updated history in a way the GUI can access it
                 self.updated_history = updated_history
             else:
-                self.finished.emit(result)
+                response = result
                 self.updated_history = None
+
+            self.thinking_stopped.emit()
+            self.finished.emit(response)
         except Exception as exc:
             self.thinking_stopped.emit()
             self.error.emit(str(exc))
@@ -98,7 +98,7 @@ class TypingIndicator(QFrame):
         self.layout.setSpacing(4)
 
         # Typing Label
-        self.label = QLabel("...")
+        self.label = QLabel('...')
         self.label.setFont(QFont('Segoe UI', 10))
         self.layout.addWidget(self.label)
 
@@ -124,7 +124,7 @@ class TypingIndicator(QFrame):
     def animate(self):
         """Animate the dots"""
         self.dot_count = (self.dot_count % 3) + 1
-        self.label.setText("•" * self.dot_count)
+        self.label.setText('•' * self.dot_count)
 
     def stop_animation(self):
         """Stop the animation timer"""

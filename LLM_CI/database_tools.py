@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import json
 import os
-from typing import Dict, List, Optional, Any, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from langchain.tools import tool
 
@@ -18,22 +18,22 @@ _db_config = None
 def load_db_config(config_file: Optional[str] = None) -> Dict[str, Any]:
     """
     Load database configuration from JSON file or environment variables.
-    
+
     Args:
         config_file: Path to database config JSON file
-        
+
     Returns:
         Dictionary with database configuration
     """
     global _db_config
-    
+
     if _db_config:
         return _db_config
-    
+
     # Try to load from file first
     if config_file is None:
         config_file = os.getenv('DB_CONFIG_FILE', 'db_config.json')
-    
+
     if os.path.exists(config_file):
         try:
             with open(config_file, 'r', encoding='utf-8') as f:
@@ -41,10 +41,10 @@ def load_db_config(config_file: Optional[str] = None) -> Dict[str, Any]:
                 return _db_config
         except Exception as e:
             print(f"Warning: Could not load db_config from file: {e}")
-    
+
     # Fall back to environment variables
     db_type = os.getenv('DB_TYPE', 'sqlite').lower()
-    
+
     if db_type == 'sqlite':
         _db_config = {
             'type': 'sqlite',
@@ -80,7 +80,7 @@ def load_db_config(config_file: Optional[str] = None) -> Dict[str, Any]:
         }
     else:
         raise ValueError(f"Unsupported database type: {db_type}")
-    
+
     return _db_config
 
 
@@ -89,15 +89,15 @@ def get_db_connection():
     Get or create a database connection.
     For SQLite, creates a fresh connection each time (thread-safe).
     For other databases, reuses the cached connection.
-    
+
     Returns:
         Database connection object
     """
     global _db_connection
-    
+
     config = load_db_config()
     db_type = config.get('type', 'sqlite').lower()
-    
+
     # For SQLite, create a fresh connection each time to handle threading
     if db_type == 'sqlite':
         import sqlite3
@@ -107,11 +107,11 @@ def get_db_connection():
             return conn
         except Exception as e:
             raise ConnectionError(f"Failed to connect to SQLite database: {e}")
-    
+
     # For other databases, use connection pooling
     if _db_connection is not None:
         return _db_connection
-    
+
     try:
         if db_type == 'postgresql':
             import psycopg2
@@ -145,17 +145,17 @@ def get_db_connection():
         raise ImportError(f"Database driver not installed: {e}. Please install the appropriate Python package.")
     except Exception as e:
         raise ConnectionError(f"Failed to connect to {db_type} database: {e}")
-    
+
     return _db_connection
 
 
 def execute_query(query: str) -> Tuple[List[Dict[str, Any]], Optional[str]]:
     """
     Execute a SQL query and return results.
-    
+
     Args:
         query: SQL query string
-        
+
     Returns:
         Tuple of (results list, error message if any)
     """
@@ -163,26 +163,26 @@ def execute_query(query: str) -> Tuple[List[Dict[str, Any]], Optional[str]]:
         conn = get_db_connection()
         cursor = conn.cursor()
         cursor.execute(query)
-        
+
         # For SELECT queries
         if query.strip().upper().startswith('SELECT'):
             columns = [desc[0] for desc in cursor.description] if cursor.description else []
             rows = cursor.fetchall()
             results = []
-            
+
             # Convert rows to dictionaries
             db_type = load_db_config().get('type', 'sqlite').lower()
             if db_type == 'sqlite':
                 results = [dict(row) for row in rows]
             else:
                 results = [dict(zip(columns, row)) for row in rows]
-            
+
             return results, None
         else:
             # For INSERT, UPDATE, DELETE queries
             conn.commit()
             return [{'affected_rows': cursor.rowcount}], None
-    
+
     except Exception as e:
         return [], str(e)
 
@@ -233,7 +233,7 @@ def generate_and_preview_query(
                 # MSSQL: list user tables from INFORMATION_SCHEMA
                 query = (
                     f"SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES "
-                    f"WHERE TABLE_TYPE='BASE TABLE' AND TABLE_CATALOG='{config.get('database','')}'"
+                    f"WHERE TABLE_TYPE='BASE TABLE' AND TABLE_CATALOG='{config.get('database', '')}'"
                 )
 
             if query:
@@ -241,7 +241,7 @@ def generate_and_preview_query(
                 if error:
                     database_schema = f"Unable to retrieve schema: {error}"
                 elif not results:
-                    database_schema = "No tables found in database"
+                    database_schema = 'No tables found in database'
                 else:
                     tables = []
                     for r in results:
@@ -254,17 +254,17 @@ def generate_and_preview_query(
                             try:
                                 val = str(r)
                             except Exception:
-                                val = "<unknown>"
+                                val = '<unknown>'
                         tables.append(str(val))
-                    database_schema = "Available tables: " + ", ".join(tables)
+                    database_schema = 'Available tables: ' + ', '.join(tables)
             else:
                 database_schema = f"Schema not available for database type: {db_type}"
         except Exception as e:
             database_schema = f"Unable to retrieve schema: {e}"
 
     # Ensure database_schema is at least an informative string
-    if database_schema is None :
-        database_schema = "Database schema not provided and automatic retrieval failed."
+    if database_schema is None:
+        database_schema = 'Database schema not provided and automatic retrieval failed.'
 
     return (
         f"Based on the question: '{user_question}'\n\n"
@@ -280,52 +280,52 @@ def generate_and_preview_query(
 def execute_database_query(sql_query: str) -> str:
     """
     Execute a SQL query against the database and return results.
-    
+
     IMPORTANT: This should only be called AFTER the user has reviewed and approved the query.
     The agent should ALWAYS preview the query first using generate_and_preview_query.
-    
+
     Args:
         sql_query: The SQL query to execute
-        
+
     Returns:
         JSON string containing query results or error message
     """
     # Validate query safety - prevent dangerous operations
     dangerous_keywords = ['DROP', 'TRUNCATE', 'DELETE', 'ALTER', 'CREATE', 'MODIFY']
     query_upper = sql_query.strip().upper()
-    
+
     for keyword in dangerous_keywords:
         if query_upper.startswith(keyword):
             return json.dumps({
                 'error': f"Query execution blocked: {keyword} operations are not allowed for safety reasons. "
-                         f"Please contact an administrator if you need to perform this operation.",
+                f"Please contact an administrator if you need to perform this operation.",
                 'query': sql_query
             })
-    
+
     # Basic SQL injection prevention - check for common patterns
     if any(char in sql_query for char in [';--', '/*', '*/', 'xp_', 'sp_']):
         return json.dumps({
             'error': 'Query blocked: Potential SQL injection detected',
             'query': sql_query
         })
-    
+
     try:
         results, error = execute_query(sql_query)
-        
+
         if error:
             return json.dumps({
                 'error': error,
                 'query': sql_query,
                 'results': []
             })
-        
+
         return json.dumps({
             'success': True,
             'query': sql_query,
             'row_count': len(results),
             'results': results
         })
-    
+
     except Exception as e:
         return json.dumps({
             'error': str(e),
@@ -339,84 +339,84 @@ def get_database_schema() -> str:
     """
     Retrieve the complete schema of the connected database.
     Shows all tables and their column information.
-    
+
     Returns:
         Formatted string containing database schema information
     """
     try:
         config = load_db_config()
         db_type = config.get('type', 'sqlite').lower()
-        
+
         if db_type == 'sqlite':
             results, error = execute_query("SELECT name FROM sqlite_master WHERE type='table';")
             if error:
                 return f"Error retrieving tables: {error}"
-            
+
             schema_info = []
             for table in results:
                 table_name = table['name']
                 cols, _ = execute_query(f"PRAGMA table_info({table_name});")
-                col_info = ", ".join([f"{col['name']} ({col['type']})" for col in cols])
+                col_info = ', '.join([f"{col['name']} ({col['type']})" for col in cols])
                 schema_info.append(f"Table '{table_name}': {col_info}")
-            
-            return "\n".join(schema_info) if schema_info else "No tables found in database"
-        
+
+            return '\n'.join(schema_info) if schema_info else 'No tables found in database'
+
         elif db_type == 'postgresql':
             query = """
-            SELECT table_name, column_name, data_type 
-            FROM information_schema.columns 
+            SELECT table_name, column_name, data_type
+            FROM information_schema.columns
             WHERE table_schema = 'public'
             ORDER BY table_name, ordinal_position;
             """
             results, error = execute_query(query)
             if error:
                 return f"Error retrieving schema: {error}"
-            
+
             schema_dict = {}
             for row in results:
                 table = row['table_name']
                 if table not in schema_dict:
                     schema_dict[table] = []
                 schema_dict[table].append(f"{row['column_name']} ({row['data_type']})")
-            
+
             schema_info = [f"Table '{t}': {', '.join(cols)}" for t, cols in schema_dict.items()]
-            return "\n".join(schema_info)
-        
+            return '\n'.join(schema_info)
+
         elif db_type == 'mysql':
             query = f"SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA = '{config['database']}'"
             results, error = execute_query(query)
             if error:
                 return f"Error retrieving tables: {error}"
-            
+
             schema_info = []
             for table in results:
                 table_name = table[list(table.keys())[0]]
                 cols, _ = execute_query(f"DESCRIBE {table_name}")
-                col_info = ", ".join([f"{col['Field']} ({col['Type']})" for col in cols])
+                col_info = ', '.join([f"{col['Field']} ({col['Type']})" for col in cols])
                 schema_info.append(f"Table '{table_name}': {col_info}")
-            
-            return "\n".join(schema_info) if schema_info else "No tables found in database"
-        
+
+            return '\n'.join(schema_info) if schema_info else 'No tables found in database'
+
         elif db_type == 'mssql':
             query = """
-            SELECT TABLE_NAME, COLUMN_NAME, DATA_TYPE 
-            FROM INFORMATION_SCHEMA.COLUMNS 
+            SELECT TABLE_NAME, COLUMN_NAME, DATA_TYPE
+            FROM INFORMATION_SCHEMA.COLUMNS
             WHERE TABLE_CATALOG = ?
             ORDER BY TABLE_NAME, ORDINAL_POSITION;
             """
             conn = get_db_connection()
             cursor = conn.cursor()
             cursor.execute(query, (config['database'],))
-            
+
             schema_dict = {}
             for row in cursor.fetchall():
                 table = row[0]
                 if table not in schema_dict:
                     schema_dict[table] = []
                 schema_dict[table].append(f"{row[1]} ({row[2]})")
-            
+
             schema_info = [f"Table '{t}': {', '.join(cols)}" for t, cols in schema_dict.items()]
-            return "\n".join(schema_info) if schema_info else "No tables found in database"
-    
+            return '\n'.join(schema_info) if schema_info else 'No tables found in database'
+
     except Exception as e:
         return f"Error retrieving database schema: {e}"

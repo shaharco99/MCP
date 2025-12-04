@@ -14,10 +14,9 @@ from Tools import code_reviewer, doc_loader
 
 try:
     from database_tools import (
-        generate_and_preview_query,
         execute_database_query,
-        get_database_schema,
-        close_db_connection
+        generate_and_preview_query,
+        get_database_schema
     )
     DATABASE_TOOLS_AVAILABLE = True
 except ImportError:
@@ -348,10 +347,10 @@ def process_prompt(prompt, llm, verbose=False, output_stream=None, usage_mode: O
             chat_history.insert(0, ('system', system_message))
     else:
         chat_history = [('system', system_message)]
-    
+
     # Add the new user prompt
     chat_history.append(('human', prompt))
-    
+
     tool_call_count = 0
     tool_error_count = 0
     last_ai_msg = None
@@ -378,7 +377,7 @@ def process_prompt(prompt, llm, verbose=False, output_stream=None, usage_mode: O
             chat_history.append(ai_msg)
 
             tool_calls = getattr(ai_msg, 'tool_calls', None) or []
-            
+
             # Debug: Log what we got from the LLM
             if verbose:
                 print(f"DEBUG: ai_msg type: {type(ai_msg)}", file=output_stream)
