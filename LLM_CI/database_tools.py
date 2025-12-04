@@ -213,7 +213,6 @@ def generate_and_preview_query(
         try:
             config = load_db_config()
             db_type = config.get('type', 'sqlite').lower()
-            print(f"DEBUG: db_type: {db_type}")
             query = None
             if db_type == 'sqlite':
                 query = "SELECT name FROM sqlite_master WHERE type='table';"
