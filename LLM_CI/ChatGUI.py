@@ -417,11 +417,8 @@ class ChatWindow(QMainWindow):
         self.hide_typing_indicator()
         self.add_chat_bubble(response, is_user=False)
         # If the worker produced an updated conversation history, persist it
-        try:
-            if hasattr(self, 'worker') and getattr(self.worker, 'updated_history', None):
-                self.conversation_history = self.worker.updated_history
-        except Exception:
-            pass
+        if hasattr(self, 'worker') and getattr(self.worker, 'updated_history', None):
+            self.conversation_history = self.worker.updated_history
         self.input_field.setDisabled(False)
         self.send_btn.setDisabled(False)
         self.input_field.setFocus()

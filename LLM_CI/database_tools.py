@@ -189,12 +189,13 @@ def execute_query(query: str) -> Tuple[List[Dict[str, Any]], Optional[str]]:
 
 def close_db_connection():
     """Close the database connection."""
+    import logging
     global _db_connection
     if _db_connection:
         try:
             _db_connection.close()
-        except Exception:
-            pass
+        except Exception as e:
+            logging.warning(f"Error closing database connection: {e}")
         _db_connection = None
 
 
@@ -214,6 +215,9 @@ def generate_and_preview_query(
     Returns:
         A suggested SQL query that can be reviewed before execution
     """
+    # Sanitize user_question to prevent prompt injection
+    sanitized_question = user_question.replace("'", "''").replace('"""', '""')
+
     # This tool returns a query for review - the actual execution
     # will be handled by execute_database_query after user confirmation
 
@@ -228,12 +232,14 @@ def generate_and_preview_query(
             elif db_type == 'postgresql':
                 query = "SELECT table_name FROM information_schema.tables WHERE table_schema='public';"
             elif db_type == 'mysql':
-                query = f"SELECT table_name FROM information_schema.tables WHERE table_schema='{config['database']}';"
+                db_name = config['database'].replace('`', '``')
+                query = f"SELECT table_name FROM information_schema.tables WHERE table_schema=`{db_name}`;"
             elif db_type == 'mssql':
                 # MSSQL: list user tables from INFORMATION_SCHEMA
+                db_name = config.get('database', '').replace("'", "''")
                 query = (
                     f"SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES "
-                    f"WHERE TABLE_TYPE='BASE TABLE' AND TABLE_CATALOG='{config.get('database', '')}'"
+                    f"WHERE TABLE_TYPE='BASE TABLE' AND TABLE_CATALOG=N'{db_name}'"
                 )
 
             if query:
@@ -267,7 +273,7 @@ def generate_and_preview_query(
         database_schema = 'Database schema not provided and automatic retrieval failed.'
 
     return (
-        f"Based on the question: '{user_question}'\n\n"
+        f"Based on the question: {sanitized_question!r}\n\n"
         f"Database Schema: {database_schema}\n\n"
         f"Please construct an appropriate SQL query. You should return the complete SQL query "
         f"that would answer this question. The user will review and confirm before execution.\n\n"
@@ -383,7 +389,8 @@ def get_database_schema() -> str:
             return '\n'.join(schema_info)
 
         elif db_type == 'mysql':
-            query = f"SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA = '{config['database']}'"
+            db_name = config['database'].replace('`', '``')
+            query = f"SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA = `{db_name}`"
             results, error = execute_query(query)
             if error:
                 return f"Error retrieving tables: {error}"

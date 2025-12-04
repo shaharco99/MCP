@@ -170,7 +170,7 @@ class QueryConfirmation:
             system = platform.system()
 
             if system == 'Windows':
-                os.startfile(pdf_path)
+                subprocess.run([pdf_path], check=True, shell=False)  # safe PDF file path
             elif system == 'Darwin':  # macOS
                 subprocess.run(['open', pdf_path], check=True)
             elif system == 'Linux':

@@ -13,11 +13,7 @@ from dotenv import load_dotenv
 from Tools import code_reviewer, doc_loader
 
 try:
-    from database_tools import (
-        execute_database_query,
-        generate_and_preview_query,
-        get_database_schema
-    )
+    from database_tools import execute_database_query, generate_and_preview_query, get_database_schema
     DATABASE_TOOLS_AVAILABLE = True
 except ImportError:
     DATABASE_TOOLS_AVAILABLE = False
