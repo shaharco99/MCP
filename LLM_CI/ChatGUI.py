@@ -4,7 +4,7 @@ import os
 import sys
 from datetime import datetime
 
-from PyQt6.QtCore import Qt, QThread, pyqtSignal
+from PyQt6.QtCore import Qt, QThread, pyqtSignal, QTimer
 from PyQt6.QtGui import QFont
 from PyQt6.QtWidgets import (
     QApplication,
@@ -46,6 +46,8 @@ except ImportError:
 class Worker(QThread):
     finished = pyqtSignal(str)
     error = pyqtSignal(str)
+    thinking_started = pyqtSignal()
+    thinking_stopped = pyqtSignal()
 
     def __init__(self, prompt: str, llm, parent=None):
         super().__init__(parent)
@@ -54,10 +56,67 @@ class Worker(QThread):
 
     def run(self):
         try:
+            self.thinking_started.emit()
             response = process_prompt(self.prompt, self.llm, verbose=False, usage_mode='chat')
+            self.thinking_stopped.emit()
             self.finished.emit(response)
         except Exception as exc:
+            self.thinking_stopped.emit()
             self.error.emit(str(exc))
+
+# -----------------------------------------------------------------------------
+# UI COMPONENT: Typing Indicator
+# -----------------------------------------------------------------------------
+
+
+class TypingIndicator(QFrame):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setFrameShape(QFrame.Shape.NoFrame)
+
+        # Main Layout
+        self.layout = QVBoxLayout(self)
+        self.layout.setContentsMargins(12, 10, 12, 8)
+        self.layout.setSpacing(4)
+
+        # Typing Label
+        self.label = QLabel("...")
+        self.label.setFont(QFont('Segoe UI', 10))
+        self.layout.addWidget(self.label)
+
+        # Animation timer
+        self.timer = QTimer()
+        self.timer.timeout.connect(self.animate)
+        self.dot_count = 1
+        self.timer.start(500)  # Update every 500ms
+
+        # Styling
+        self.setStyleSheet("""
+            TypingIndicator {
+                background-color: #ffffff;
+                border-radius: 15px 15px 15px 0px;
+            }
+            QLabel {
+                background-color: transparent;
+                border: none;
+                color: #888;
+            }
+        """)
+
+    def animate(self):
+        """Animate the dots"""
+        self.dot_count = (self.dot_count % 3) + 1
+        self.label.setText("•" * self.dot_count)
+
+    def stop_animation(self):
+        """Stop the animation timer"""
+        self.timer.stop()
+
+    def __del__(self):
+        """Clean up timer"""
+        if self.timer.isActive():
+            self.timer.stop()
+
 
 # -----------------------------------------------------------------------------
 # UI COMPONENT: Message Bubble
@@ -171,6 +230,8 @@ class ChatWindow(QMainWindow):
     def __init__(self, llm):
         super().__init__()
         self.llm = llm
+        self.typing_indicator = None
+        self.typing_row = None
         self.setWindowTitle('MCP — DevOps Chat')
         self.resize(500, 750)
 
@@ -263,6 +324,36 @@ class ChatWindow(QMainWindow):
         QApplication.processEvents()
         self.scroll_to_bottom()
 
+    def show_typing_indicator(self):
+        """Show the typing indicator animation"""
+        self.typing_indicator = TypingIndicator(parent=self.chat_container)
+        self.typing_row = QHBoxLayout()
+        self.typing_row.setContentsMargins(0, 4, 0, 4)
+        self.typing_row.setSpacing(0)
+        self.typing_row.addWidget(self.typing_indicator)
+        self.typing_row.addStretch()
+
+        # Create a container widget for the layout
+        container = QWidget()
+        container.setLayout(self.typing_row)
+        self.chat_layout.addWidget(container)
+        QApplication.processEvents()
+        self.scroll_to_bottom()
+
+    def hide_typing_indicator(self):
+        """Hide and remove the typing indicator"""
+        if self.typing_indicator:
+            self.typing_indicator.stop_animation()
+            # Remove the typing indicator widget
+            widget = self.typing_indicator.parent()
+            if widget:
+                self.chat_layout.removeWidget(widget)
+                widget.deleteLater()
+            self.typing_indicator = None
+            self.typing_row = None
+            QApplication.processEvents()
+            self.scroll_to_bottom()
+
     def scroll_to_bottom(self):
         scrollbar = self.scroll.verticalScrollBar()
         scrollbar.setValue(scrollbar.maximum())
@@ -280,18 +371,33 @@ class ChatWindow(QMainWindow):
         self.input_field.setDisabled(True)
         self.send_btn.setDisabled(True)
 
+        # Show typing indicator
+        self.show_typing_indicator()
+
         self.worker = Worker(text, self.llm)
+        self.worker.thinking_started.connect(self.on_thinking_started)
+        self.worker.thinking_stopped.connect(self.on_thinking_stopped)
         self.worker.finished.connect(self.on_response)
         self.worker.error.connect(self.on_error)
         self.worker.start()
 
+    def on_thinking_started(self):
+        """Called when the agent starts processing"""
+        pass  # Typing indicator is already shown
+
+    def on_thinking_stopped(self):
+        """Called when the agent finishes processing"""
+        pass  # Will be hidden in on_response or on_error
+
     def on_response(self, response: str):
+        self.hide_typing_indicator()
         self.add_chat_bubble(response, is_user=False)
         self.input_field.setDisabled(False)
         self.send_btn.setDisabled(False)
         self.input_field.setFocus()
 
     def on_error(self, err: str):
+        self.hide_typing_indicator()
         self.add_chat_bubble(f"Error: {err}", is_user=False)
         self.input_field.setDisabled(False)
         self.send_btn.setDisabled(False)
