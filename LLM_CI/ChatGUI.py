@@ -49,17 +49,35 @@ class Worker(QThread):
     thinking_started = pyqtSignal()
     thinking_stopped = pyqtSignal()
 
-    def __init__(self, prompt: str, llm, parent=None):
+    def __init__(self, prompt: str, llm, conversation_history: list = None, parent=None):
         super().__init__(parent)
         self.prompt = prompt
         self.llm = llm
+        self.conversation_history = conversation_history or []
+        self.updated_history = None
 
     def run(self):
         try:
             self.thinking_started.emit()
-            response = process_prompt(self.prompt, self.llm, verbose=False, usage_mode='chat')
-            self.thinking_stopped.emit()
+            # Always pass conversation_history (may be empty list or contain prior messages)
+            result = process_prompt(
+                self.prompt,
+                self.llm,
+                verbose=True,
+                usage_mode='chat',
+                conversation_history=self.conversation_history
+            )
+            # Handle both return formats: (response, history) or just response
+            if isinstance(result, tuple):
+                response, updated_history = result
+                # Emit both response and updated history
+                self.thinking_stopped.emit()
             self.finished.emit(response)
+                # Store the updated history in a way the GUI can access it
+                self.updated_history = updated_history
+            else:
+                self.finished.emit(result)
+                self.updated_history = None
         except Exception as exc:
             self.thinking_stopped.emit()
             self.error.emit(str(exc))
@@ -230,10 +248,12 @@ class ChatWindow(QMainWindow):
     def __init__(self, llm):
         super().__init__()
         self.llm = llm
+        # Initialize conversation history with the system message so context is preserved
+        self.conversation_history = [('system', system_message)]  # Maintain conversation history
         self.typing_indicator = None
         self.typing_row = None
         self.setWindowTitle('MCP — DevOps Chat')
-        self.resize(500, 750)
+        self.resize(600, 750)
 
         # Global Styles
         self.setStyleSheet("""
@@ -377,7 +397,8 @@ class ChatWindow(QMainWindow):
         # Show typing indicator
         self.show_typing_indicator()
 
-        self.worker = Worker(text, self.llm)
+        # Pass current conversation_history so the LLM keeps context; enable verbose debug output
+        self.worker = Worker(text, self.llm, conversation_history=self.conversation_history)
         self.worker.thinking_started.connect(self.on_thinking_started)
         self.worker.thinking_stopped.connect(self.on_thinking_stopped)
         self.worker.finished.connect(self.on_response)
@@ -395,6 +416,12 @@ class ChatWindow(QMainWindow):
     def on_response(self, response: str):
         self.hide_typing_indicator()
         self.add_chat_bubble(response, is_user=False)
+        # If the worker produced an updated conversation history, persist it
+        try:
+            if hasattr(self, 'worker') and getattr(self.worker, 'updated_history', None):
+                self.conversation_history = self.worker.updated_history
+        except Exception:
+            pass
         self.input_field.setDisabled(False)
         self.send_btn.setDisabled(False)
         self.input_field.setFocus()

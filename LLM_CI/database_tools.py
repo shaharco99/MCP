@@ -87,24 +87,33 @@ def load_db_config(config_file: Optional[str] = None) -> Dict[str, Any]:
 def get_db_connection():
     """
     Get or create a database connection.
+    For SQLite, creates a fresh connection each time (thread-safe).
+    For other databases, reuses the cached connection.
     
     Returns:
         Database connection object
     """
     global _db_connection
     
-    if _db_connection is not None:
-        return _db_connection
-    
     config = load_db_config()
     db_type = config.get('type', 'sqlite').lower()
     
+    # For SQLite, create a fresh connection each time to handle threading
+    if db_type == 'sqlite':
+        import sqlite3
+        try:
+            conn = sqlite3.connect(config['database'], check_same_thread=False)
+            conn.row_factory = sqlite3.Row
+            return conn
+        except Exception as e:
+            raise ConnectionError(f"Failed to connect to SQLite database: {e}")
+    
+    # For other databases, use connection pooling
+    if _db_connection is not None:
+        return _db_connection
+    
     try:
-        if db_type == 'sqlite':
-            import sqlite3
-            _db_connection = sqlite3.connect(config['database'])
-            _db_connection.row_factory = sqlite3.Row
-        elif db_type == 'postgresql':
+        if db_type == 'postgresql':
             import psycopg2
             _db_connection = psycopg2.connect(
                 host=config['host'],

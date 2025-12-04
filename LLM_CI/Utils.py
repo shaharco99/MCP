@@ -320,31 +320,58 @@ def execute_tool(tool_name, tool_args):
     return f"Unknown tool: {tool_name}"
 
 
-def process_prompt(prompt, llm, verbose=False, output_stream=None, usage_mode: Optional[str] = None):
+def process_prompt(prompt, llm, verbose=False, output_stream=None, usage_mode: Optional[str] = None, conversation_history: Optional[list] = None):
     """
     Process a single prompt and return the response.
-    Handles tool calls automatically.
+    Handles tool calls automatically and maintains conversation history.
 
     Args:
         prompt: The prompt text to process
         llm: The LLM instance to use
         verbose: If True, print tool execution details
         output_stream: Stream to write verbose output to (default: sys.stderr)
+        usage_mode: 'cli' or 'chat' for usage logging
+        conversation_history: Optional list of previous messages to maintain context
 
     Returns:
-        str: The final response from the LLM
+        tuple: (response_text, updated_chat_history) - The final response and full conversation history
     """
     import sys
     if output_stream is None:
         output_stream = sys.stderr
 
-    chat_history = [('system', system_message), ('human', prompt)]
+    # Initialize chat history: use provided history if given (even empty list), otherwise start fresh
+    if conversation_history is not None:
+        chat_history = list(conversation_history)
+        # Ensure system message exists at start
+        if not chat_history or not (isinstance(chat_history[0], tuple) and chat_history[0][0] == 'system'):
+            chat_history.insert(0, ('system', system_message))
+    else:
+        chat_history = [('system', system_message)]
+    
+    # Add the new user prompt
+    chat_history.append(('human', prompt))
+    
     tool_call_count = 0
     tool_error_count = 0
     last_ai_msg = None
 
     # Handle tool calls until final response
     try:
+        if verbose:
+            print(f"DEBUG: Starting process_prompt; initial chat_history length={len(chat_history)}", file=output_stream)
+            for i, item in enumerate(chat_history[:5]):
+                t = type(item)
+                preview = ''
+                try:
+                    if isinstance(item, tuple):
+                        preview = str(item[1])[:120]
+                    else:
+                        preview = getattr(item, 'content', str(item))[:120]
+                except Exception:
+                    preview = str(item)
+                print(f"  [{i}] {t} -> {preview}", file=output_stream)
+
         while True:
             ai_msg = llm.invoke(chat_history)
             last_ai_msg = ai_msg
@@ -376,6 +403,11 @@ def process_prompt(prompt, llm, verbose=False, output_stream=None, usage_mode: O
                             'tool_errors': tool_error_count,
                         },
                     )
+                # Return both the response and updated history for GUI when a conversation_history was provided
+                if conversation_history is not None:
+                    if verbose:
+                        print(f"DEBUG: Returning response and chat_history (len={len(chat_history)})", file=output_stream)
+                    return final_response, chat_history
                 return final_response
 
             tool_call_count += len(tool_calls)
