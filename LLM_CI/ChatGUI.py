@@ -322,7 +322,8 @@ class ChatWindow(QMainWindow):
         row = MessageRow(text, is_user, ts, dt_tooltip, parent=self.chat_container)
         self.chat_layout.addWidget(row)
         QApplication.processEvents()
-        self.scroll_to_bottom()
+        # Use timer to ensure scroll happens after layout is fully rendered
+        QTimer.singleShot(10, self.scroll_to_bottom)
 
     def show_typing_indicator(self):
         """Show the typing indicator animation"""
@@ -338,7 +339,8 @@ class ChatWindow(QMainWindow):
         container.setLayout(self.typing_row)
         self.chat_layout.addWidget(container)
         QApplication.processEvents()
-        self.scroll_to_bottom()
+        # Use timer to ensure scroll happens after layout is fully rendered
+        QTimer.singleShot(10, self.scroll_to_bottom)
 
     def hide_typing_indicator(self):
         """Hide and remove the typing indicator"""
@@ -352,7 +354,8 @@ class ChatWindow(QMainWindow):
             self.typing_indicator = None
             self.typing_row = None
             QApplication.processEvents()
-            self.scroll_to_bottom()
+            # Use timer to ensure scroll happens after layout is fully rendered
+            QTimer.singleShot(10, self.scroll_to_bottom)
 
     def scroll_to_bottom(self):
         scrollbar = self.scroll.verticalScrollBar()
