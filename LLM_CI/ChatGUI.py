@@ -5,14 +5,12 @@ import sys
 from datetime import datetime
 
 import markdown
-from PyQt6.QtCore import Qt, QThread, QTimer, pyqtSignal, QMutex
-
+from PyQt6.QtCore import Qt, QThread, QTimer, pyqtSignal
 from PyQt6.QtGui import QFont
 from PyQt6.QtWidgets import (
     QApplication,
     QFileDialog,
     QFrame,
-    QTextBrowser,
     QHBoxLayout,
     QLabel,
     QLineEdit,
@@ -20,6 +18,7 @@ from PyQt6.QtWidgets import (
     QPushButton,
     QScrollArea,
     QSizePolicy,
+    QTextBrowser,
     QVBoxLayout,
     QWidget
 )
@@ -201,7 +200,6 @@ class MessageBubble(QFrame):
             bg = '#ffffff'
             radius = '15px 15px 15px 0px'
 
-
         code_css = """
         pre {
             background-color: #f0f0f0;
@@ -359,6 +357,7 @@ class ChatWindow(QMainWindow):
     # -------------------------------------------------------------------------
     # UNIFIED MESSAGE SYSTEM
     # -------------------------------------------------------------------------
+
     def add_chat_bubble(self, text: str, is_user: bool):
         """Adds a single chat bubble to the display."""
         self.add_chat_bubbles([(text, is_user)])
