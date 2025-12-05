@@ -4,12 +4,15 @@ import os
 import sys
 from datetime import datetime
 
-from PyQt6.QtCore import Qt, QThread, QTimer, pyqtSignal
+import markdown
+from PyQt6.QtCore import Qt, QThread, QTimer, pyqtSignal, QMutex
+
 from PyQt6.QtGui import QFont
 from PyQt6.QtWidgets import (
     QApplication,
     QFileDialog,
     QFrame,
+    QTextBrowser,
     QHBoxLayout,
     QLabel,
     QLineEdit,
@@ -151,18 +154,29 @@ class MessageBubble(QFrame):
         self.layout.setContentsMargins(12, 10, 12, 8)
         self.layout.setSpacing(4)
 
-        # 2. Text Label
-        self.text_label = QLabel(message)
-        self.text_label.setWordWrap(True)
-        self.text_label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
-        self.text_label.setOpenExternalLinks(True)
+        # Convert Markdown to HTML
+        html_message = markdown.markdown(
+            message, extensions=['fenced_code', 'codehilite', 'tables', 'nl2br']
+        )
 
-        # Font Logic
-        font = QFont('Segoe UI', 10)
-        if '```' in message:
-            font = QFont('Consolas', 10)
-            self.text_label.setStyleSheet('color: #333;')
-        self.text_label.setFont(font)
+        # 2. Text Browser for Rich Text
+        self.text_browser = QTextBrowser()
+        self.text_browser.setHtml(html_message)
+        self.text_browser.setOpenExternalLinks(True)
+        self.text_browser.setReadOnly(True)
+        self.text_browser.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.text_browser.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+
+        # Use a dynamically sized font
+        font = QFont('Segoe UI')
+        font.setPixelSize(14)  # Adjust base size as needed
+        self.text_browser.setFont(font)
+
+        # Remove border/background to blend with bubble
+        self.text_browser.setStyleSheet('border: none; background: transparent;')
+
+        # Add to layout
+        self.layout.addWidget(self.text_browser)
 
         # 3. Timestamp Label
         self.time_label = QLabel(timestamp)
@@ -177,28 +191,41 @@ class MessageBubble(QFrame):
         self.time_label.setStyleSheet(f"color: {ts_color}; background: transparent;")
 
         # Add to layout
-        self.layout.addWidget(self.text_label)
         self.layout.addWidget(self.time_label)
 
         # 4. Styling (Borders & Colors)
         if is_user:
-            bg = '#d9fdd3'  # WhatsApp Green
-            # Top-Left, Top-Right, Bottom-Right (Sharp), Bottom-Left
+            bg = '#d9fdd3'
             radius = '15px 15px 0px 15px'
         else:
-            bg = '#ffffff'  # WhatsApp White
-            # Top-Left, Top-Right, Bottom-Right, Bottom-Left (Sharp)
+            bg = '#ffffff'
             radius = '15px 15px 15px 0px'
+
+
+        code_css = """
+        pre {
+            background-color: #f0f0f0;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 10pt;
+        }
+        code {
+            font-family: 'Consolas', 'Courier New', monospace;
+        }
+        """
 
         self.setStyleSheet(f"""
             MessageBubble {{
                 background-color: {bg};
                 border-radius: {radius};
             }}
-            QLabel {{
+            QTextBrowser, QLabel {{
                 background-color: transparent;
                 border: none;
             }}
+            /* Code Block Styling */
+            {code_css}
             /* Optional: Make tooltip look nice */
             QToolTip {{
                 background-color: #333;
@@ -329,21 +356,27 @@ class ChatWindow(QMainWindow):
         # 4. Initialize System
         reset_chat_usage_log()
         self.add_chat_bubble(system_message, is_user=False)
-
     # -------------------------------------------------------------------------
     # UNIFIED MESSAGE SYSTEM
     # -------------------------------------------------------------------------
     def add_chat_bubble(self, text: str, is_user: bool):
-        now = datetime.now()
-        ts = now.strftime('%H:%M')
-        # Full date for the tooltip (e.g. "Tuesday, November 25, 2025")
-        dt_tooltip = now.strftime('%A, %B %d, %Y')
+        """Adds a single chat bubble to the display."""
+        self.add_chat_bubbles([(text, is_user)])
 
-        row = MessageRow(text, is_user, ts, dt_tooltip, parent=self.chat_container)
-        self.chat_layout.addWidget(row)
-        QApplication.processEvents()
-        # Use timer to ensure scroll happens after layout is fully rendered
+    def add_chat_bubbles(self, messages: list[tuple[str, bool]]):
+        """Adds a list of chat bubbles to the display."""
+        for text, is_user in messages:
+            now = datetime.now()
+            ts = now.strftime('%H:%M')
+            dt_tooltip = now.strftime('%A, %B %d, %Y')
+
+            row = MessageRow(text, is_user, ts, dt_tooltip, parent=self.chat_container)
+            # Insert at the second to last position to keep the stretch at the bottom
+            self.chat_layout.insertWidget(self.chat_layout.count() - 1, row)
+
+        # Use a single timer to scroll to the bottom after all messages are added
         QTimer.singleShot(10, self.scroll_to_bottom)
+        QApplication.processEvents()
 
     def show_typing_indicator(self):
         """Show the typing indicator animation"""
@@ -394,10 +427,8 @@ class ChatWindow(QMainWindow):
         self.input_field.setDisabled(True)
         self.send_btn.setDisabled(True)
 
-        # Show typing indicator
         self.show_typing_indicator()
 
-        # Pass current conversation_history so the LLM keeps context; enable verbose debug output
         self.worker = Worker(text, self.llm, conversation_history=self.conversation_history)
         self.worker.thinking_started.connect(self.on_thinking_started)
         self.worker.thinking_stopped.connect(self.on_thinking_stopped)
