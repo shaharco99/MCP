@@ -8,6 +8,7 @@ import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Optional
+import logging
 
 from dotenv import load_dotenv
 from Tools import code_reviewer, doc_loader
@@ -37,30 +38,33 @@ CHAT_LOG_FILE = _LOG_DIR / 'chat_usage.jsonl'
 
 # System message
 system_message = (
-    '=== Assistant Guidance ===\n\n'
+    '## Assistant Guidance \n\n'
     'You are a DevOps and CI/CD expert assistant. Provide concise, actionable technical guidance.\n\n'
 
     'Supported Tools:\n'
-    '- doc_loader: Read PDF, TXT, MD, CSV, JSON, HTML, DOCX, PPTX, XLSX files from current directory\n'
-    '- code_reviewer: Analyze Python (.py) files for code quality\n'
-    + ('- get_database_schema: Retrieve database structure and table information\n'
-       '- generate_and_preview_query: Generate SQL queries for user review (ALWAYS use before execute_database_query)\n'
-       '- execute_database_query: Execute approved SQL queries and return results\n' if DATABASE_TOOLS_AVAILABLE else '')
+    '- **doc_loader**: Read PDF, TXT, MD, CSV, JSON, HTML, DOCX, PPTX, XLSX files from current directory\n'
+    '- **code_reviewer**: Analyze Python (.py) files for code quality\n'
+    + ('- **get_database_schema**: Retrieve database structure and table information\n'
+       '- **generate_and_preview_query**: Generate SQL queries for user review (ALWAYS use before execute_database_query)\n'
+       '- **execute_database_query**: Execute approved SQL queries and return results\n' if DATABASE_TOOLS_AVAILABLE else '')
     +
     '\nUsage Instructions:\n'
     '1. When users reference files, automatically use the appropriate tool to load/review them\n'
     '2. For Python files (.py), use doc_loader and then if needed use code_reviewer with ONLY the file_name parameter\n'
     '3. For other files, use doc_loader to extract content\n'
-    + ('4. For database queries: first call get_database_schema to see tables, then generate_and_preview_query to show the user\n'
-       '5. Wrap final SQL queries in <sql_query>...</sql_query> tags\n'
-       '6. The user must approve before execution - handle execution only after user confirmation\n'
-       '7. After execution, results can be exported to PDF\n' if DATABASE_TOOLS_AVAILABLE else '')
+    + ('### For database queries:\n'
+       '1. Call get_database_schema to see tables, then generate_and_preview_query to show the user\n'
+       '2. Wrap final SQL queries in markdown code blocks\n'
+       '3. Make sure the queries fits the DB schema \n'
+       '4. the user needs to approve the query before execution only after generate_and_preview_query\n'
+       '5. After execution, results can be exported to PDF\n' if DATABASE_TOOLS_AVAILABLE else '')
     +
     '\nResponse Guidelines:\n'
     '- Keep responses brief and focused on practical solutions\n'
     '- Use structured formatting (lists, code blocks) for clarity\n'
     '- Provide actionable recommendations\n'
-    '- Always load and analyze relevant files before answering'
+    '- Always load and analyze relevant files before answering\n'
+    '- you have markdown capabilitys use them to make the answare more readable\n'
 )
 
 
@@ -354,7 +358,7 @@ def process_prompt(prompt, llm, verbose=False, output_stream=None, usage_mode: O
     # Handle tool calls until final response
     try:
         if verbose:
-            print(f"DEBUG: Starting process_prompt; initial chat_history length={len(chat_history)}", file=output_stream)
+            logging.debug(f"Starting process_prompt; initial chat_history length={len(chat_history)}")
             for i, item in enumerate(chat_history[:5]):
                 t = type(item)
                 preview = ''
@@ -365,7 +369,7 @@ def process_prompt(prompt, llm, verbose=False, output_stream=None, usage_mode: O
                         preview = getattr(item, 'content', str(item))[:120]
                 except Exception:
                     preview = str(item)
-                print(f"  [{i}] {t} -> {preview}", file=output_stream)
+                print(f"  [{i}] {t} -> {preview}")
 
         while True:
             ai_msg = llm.invoke(chat_history)
@@ -376,11 +380,11 @@ def process_prompt(prompt, llm, verbose=False, output_stream=None, usage_mode: O
 
             # Debug: Log what we got from the LLM
             if verbose:
-                print(f"DEBUG: ai_msg type: {type(ai_msg)}", file=output_stream)
-                print(f"DEBUG: ai_msg.content: {ai_msg.content[:200] if hasattr(ai_msg, 'content') else 'N/A'}", file=output_stream)
-                print(f"DEBUG: tool_calls count: {len(tool_calls)}", file=output_stream)
+                logging.debug(f"ai_msg type: {type(ai_msg)}")
+                logging.debug(f"ai_msg.content: {ai_msg.content[:200] if hasattr(ai_msg, 'content') else 'N/A'}")
+                logging.debug(f"tool_calls count: {len(tool_calls)}")
                 if tool_calls:
-                    print(f"DEBUG: tool_calls: {tool_calls}", file=output_stream)
+                    logging.debug(f"tool_calls: {tool_calls}")
 
             if not tool_calls:
                 # Final response
@@ -401,7 +405,7 @@ def process_prompt(prompt, llm, verbose=False, output_stream=None, usage_mode: O
                 # Return both the response and updated history for GUI when a conversation_history was provided
                 if conversation_history is not None:
                     if verbose:
-                        print(f"DEBUG: Returning response and chat_history (len={len(chat_history)})", file=output_stream)
+                        logging.debug(f"Returning response and chat_history (len={len(chat_history)})")
                     return final_response, chat_history
                 return final_response
 
@@ -416,13 +420,13 @@ def process_prompt(prompt, llm, verbose=False, output_stream=None, usage_mode: O
                     if verbose:
                         # Print tool usage
                         params_str = json.dumps(tool_args) if tool_args else '{}'
-                        print(f"tools in use: {tool_name} : parameters : {params_str}\n", file=output_stream)
+                        print(f"tools in use: {tool_name} : parameters : {params_str}\n")
 
                     # Execute tool
                     result = execute_tool(tool_name, tool_args)
 
                     if verbose:
-                        print(f"Output:\n{result}\n", file=output_stream)
+                        print(f"Output:\n{result}\n")
 
                     # Add result to history
                     chat_history.append(create_tool_message(result, tool_id))

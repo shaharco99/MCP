@@ -247,8 +247,8 @@ class MessageRow(QWidget):
         # Pass date_tooltip down to bubble
         self.bubble = MessageBubble(message, is_user, timestamp, date_tooltip)
 
-        # Use 'Expanding' to encourage length over line breaks
-        self.bubble.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        # Bubble should grow with content, but not expand to fill row
+        self.bubble.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
 
         if is_user:
             self.layout.addStretch()
@@ -278,7 +278,7 @@ class ChatWindow(QMainWindow):
         self.typing_indicator = None
         self.typing_row = None
         self.setWindowTitle('MCP — DevOps Chat')
-        self.resize(600, 750)
+        self.resize(800, 950)
 
         # Global Styles
         self.setStyleSheet("""

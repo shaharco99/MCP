@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import sys
+import logging
 
 from Utils import (
     create_tool_message,
@@ -14,6 +15,8 @@ from Utils import (
     reset_chat_usage_log,
     system_message
 )
+LOG_LEVEL=os.getenv('LOG_LEVEL', 'ERROR').upper()
+logging.basicConfig(level=logging.LOG_LEVEL)
 
 # Initialize
 llm_provider = os.getenv('LLM_PROVIDER', '').upper()
@@ -24,16 +27,15 @@ if '--gui' in sys.argv:
         run_gui()
         sys.exit(0)
     except Exception as e:
-        print(f"GUI start error: {e}", file=sys.stderr)
-        # Fall back to CLI
+        logging.error(f"GUI start error: {e}")
 
 try:
     llm = get_llm_provider()
 except Exception as e:
-    print(f"Error initializing LLM: {e}", file=sys.stderr)
+    logging.error(f"Error initializing LLM: {e}",)
     sys.exit(1)
 
-print(f"DevOps Chat with {llm_provider}! Type 'exit' to quit.\n", file=sys.stderr)
+logging.info(f"DevOps Chat with {llm_provider}! Type 'exit' to quit.\n")
 
 reset_chat_usage_log()
 
@@ -44,11 +46,11 @@ while True:
     try:
         question = input('You: ')
     except (EOFError, KeyboardInterrupt):
-        print('\nExiting chat...', file=sys.stderr)
+        logging.info('\nExiting chat...')
         break
 
     if question.lower() in ['exit', 'quit']:
-        print('Exiting chat...', file=sys.stderr)
+        logging.info('Exiting chat...')
         break
 
     chat_history.append(('human', question))
@@ -73,8 +75,8 @@ while True:
                     'error': f"invoke_error: {e}",
                 },
             )
-            print(f"Error invoking LLM: {e}", file=sys.stderr)
-            print('AI: (Error occurred, please try again)\n', file=sys.stdout)
+            logging.error(f"Error invoking LLM: {e}")
+            logging.error('AI: (Error occurred, please try again)\n')
             break
 
         chat_history.append(ai_msg)
@@ -85,7 +87,7 @@ while True:
             # Final response - send to stdout for proper output separation
             response_text = ai_msg.content or ''
             if response_text:
-                print(f"AI: {response_text}\n")
+                logging.info(f"AI: {response_text}\n")
             log_usage_entry(
                 mode='chat',
                 prompt=question,
@@ -110,16 +112,16 @@ while True:
 
                 # Log tool usage to stderr (debugging/logging info)
                 params_str = json.dumps(tool_args) if tool_args else '{}'
-                print(f"tools in use: {tool_name} : parameters : {params_str}\n", file=sys.stderr)
+                logging.info(f"tools in use: {tool_name} : parameters : {params_str}\n",)
 
                 # Execute tool and log output to stderr
                 result = execute_tool(tool_name, tool_args)
-                print(f"Output:\n{result}\n", file=sys.stderr)
+                logging.info(f"Output:\n{result}\n")
 
                 # Add result to history
                 chat_history.append(create_tool_message(result, tool_id))
             except Exception as e:
                 tool_error_count += 1
                 error_msg = f"Error parsing tool call: {e}"
-                print(f"Warning: {error_msg}\n", file=sys.stderr)
+                logging.warning(f"Warning: {error_msg}\n")
                 chat_history.append(create_tool_message(error_msg, None))

@@ -7,6 +7,7 @@ from __future__ import annotations
 import json
 import os
 from typing import Any, Dict, List, Optional, Tuple
+import logging
 
 from langchain.tools import tool
 
@@ -40,7 +41,7 @@ def load_db_config(config_file: Optional[str] = None) -> Dict[str, Any]:
                 _db_config = json.load(f)
                 return _db_config
         except Exception as e:
-            print(f"Warning: Could not load db_config from file: {e}")
+            logging.warning(f"Warning: Could not load db_config from file: {e}")
 
     # Fall back to environment variables
     db_type = os.getenv('DB_TYPE', 'sqlite').lower()
@@ -202,7 +203,6 @@ def close_db_connection():
 @tool
 def generate_and_preview_query(
     user_question: str,
-    database_schema: Optional[str] = None
 ) -> str:
     """
     Generate a SQL query based on a user's question and preview it without executing.
@@ -210,7 +210,6 @@ def generate_and_preview_query(
 
     Args:
         user_question: The user's natural language question about the database
-        database_schema: Optional schema description of available tables
 
     Returns:
         A suggested SQL query that can be reviewed before execution
@@ -221,55 +220,13 @@ def generate_and_preview_query(
     # This tool returns a query for review - the actual execution
     # will be handled by execute_database_query after user confirmation
 
-    if not database_schema:
-        # Try to get schema from database (return a short, informative string)
-        try:
-            config = load_db_config()
-            db_type = config.get('type', 'sqlite').lower()
-            query = None
-            if db_type == 'sqlite':
-                query = "SELECT name FROM sqlite_master WHERE type='table';"
-            elif db_type == 'postgresql':
-                query = "SELECT table_name FROM information_schema.tables WHERE table_schema='public';"
-            elif db_type == 'mysql':
-                db_name = config['database'].replace('`', '``')
-                query = f"SELECT table_name FROM information_schema.tables WHERE table_schema=`{db_name}`;"
-            elif db_type == 'mssql':
-                # MSSQL: list user tables from INFORMATION_SCHEMA
-                db_name = config.get('database', '').replace("'", "''")
-                query = (
-                    f"SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES "
-                    f"WHERE TABLE_TYPE='BASE TABLE' AND TABLE_CATALOG=N'{db_name}'"
-                )
-
-            if query:
-                results, error = execute_query(query)
-                if error:
-                    database_schema = f"Unable to retrieve schema: {error}"
-                elif not results:
-                    database_schema = 'No tables found in database'
-                else:
-                    tables = []
-                    for r in results:
-                        # r may be dict-like or sequence depending on driver
-                        if isinstance(r, dict):
-                            val = next(iter(r.values()))
-                        elif isinstance(r, (list, tuple)):
-                            val = r[0]
-                        else:
-                            try:
-                                val = str(r)
-                            except Exception:
-                                val = '<unknown>'
-                        tables.append(str(val))
-                    database_schema = 'Available tables: ' + ', '.join(tables)
-            else:
-                database_schema = f"Schema not available for database type: {db_type}"
-        except Exception as e:
-            database_schema = f"Unable to retrieve schema: {e}"
+    try:
+        database_schema = get_database_schema()
+    except Exception as e:
+        database_schema = f"Unable to retrieve schema: {e}"
 
     # Ensure database_schema is at least an informative string
-    if database_schema is None:
+    if not database_schema:
         database_schema = 'Database schema not provided and automatic retrieval failed.'
 
     return (
@@ -352,20 +309,30 @@ def get_database_schema() -> str:
     try:
         config = load_db_config()
         db_type = config.get('type', 'sqlite').lower()
+        schema_info = []
 
         if db_type == 'sqlite':
-            results, error = execute_query("SELECT name FROM sqlite_master WHERE type='table';")
+            # Get tables
+            tables, error = execute_query("SELECT name FROM sqlite_master WHERE type='table';")
             if error:
                 return f"Error retrieving tables: {error}"
-
-            schema_info = []
-            for table in results:
+            for table in tables:
                 table_name = table['name']
                 cols, _ = execute_query(f"PRAGMA table_info({table_name});")
                 col_info = ', '.join([f"{col['name']} ({col['type']})" for col in cols])
                 schema_info.append(f"Table '{table_name}': {col_info}")
 
-            return '\n'.join(schema_info) if schema_info else 'No tables found in database'
+            # Get views
+            views, error = execute_query("SELECT name FROM sqlite_master WHERE type='view';")
+            if error:
+                return f"Error retrieving views: {error}"
+            for view in views:
+                view_name = view['name']
+                cols, _ = execute_query(f"PRAGMA table_info({view_name});")
+                col_info = ', '.join([f"{col['name']} ({col['type']})" for col in cols])
+                schema_info.append(f"View '{view_name}': {col_info}")
+
+            return '\n'.join(schema_info) if schema_info else 'No tables or views found in database'
 
         elif db_type == 'postgresql':
             query = """
@@ -385,45 +352,80 @@ def get_database_schema() -> str:
                     schema_dict[table] = []
                 schema_dict[table].append(f"{row['column_name']} ({row['data_type']})")
 
-            schema_info = [f"Table '{t}': {', '.join(cols)}" for t, cols in schema_dict.items()]
-            return '\n'.join(schema_info)
+            # Get views separately to label them
+            views_query = "SELECT table_name FROM information_schema.views WHERE table_schema = 'public';"
+            views_result, views_error = execute_query(views_query)
+            if views_error:
+                return f"Error retrieving views: {views_error}"
+            view_names = {row['table_name'] for row in views_result}
+
+            for t, cols in schema_dict.items():
+                entity_type = "View" if t in view_names else "Table"
+                schema_info.append(f"{entity_type} '{t}': {', '.join(cols)}")
+            
+            return '\n'.join(schema_info) if schema_info else 'No tables or views found in database'
 
         elif db_type == 'mysql':
             db_name = config['database'].replace('`', '``')
-            query = f"SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA = `{db_name}`"
-            results, error = execute_query(query)
+            
+            # Get tables
+            tables_query = f"SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA = '{db_name}' AND TABLE_TYPE = 'BASE TABLE'"
+            tables, error = execute_query(tables_query)
             if error:
                 return f"Error retrieving tables: {error}"
-
-            schema_info = []
-            for table in results:
+            for table in tables:
                 table_name = table[list(table.keys())[0]]
-                cols, _ = execute_query(f"DESCRIBE {table_name}")
+                cols, _ = execute_query(f"DESCRIBE `{table_name}`")
                 col_info = ', '.join([f"{col['Field']} ({col['Type']})" for col in cols])
                 schema_info.append(f"Table '{table_name}': {col_info}")
 
-            return '\n'.join(schema_info) if schema_info else 'No tables found in database'
+            # Get views
+            views_query = f"SELECT TABLE_NAME FROM information_schema.VIEWS WHERE TABLE_SCHEMA = '{db_name}'"
+            views, error = execute_query(views_query)
+            if error:
+                return f"Error retrieving views: {error}"
+            for view in views:
+                view_name = view[list(view.keys())[0]]
+                cols, _ = execute_query(f"DESCRIBE `{view_name}`")
+                col_info = ', '.join([f"{col['Field']} ({col['Type']})" for col in cols])
+                schema_info.append(f"View '{view_name}': {col_info}")
+
+            return '\n'.join(schema_info) if schema_info else 'No tables or views found in database'
 
         elif db_type == 'mssql':
+            db_name = config['database']
+            # Get tables and views with their columns
             query = """
-            SELECT TABLE_NAME, COLUMN_NAME, DATA_TYPE
-            FROM INFORMATION_SCHEMA.COLUMNS
-            WHERE TABLE_CATALOG = ?
-            ORDER BY TABLE_NAME, ORDINAL_POSITION;
+            SELECT 
+                t.TABLE_NAME, 
+                c.COLUMN_NAME, 
+                c.DATA_TYPE, 
+                t.TABLE_TYPE 
+            FROM INFORMATION_SCHEMA.TABLES as t
+            JOIN INFORMATION_SCHEMA.COLUMNS as c
+                ON t.TABLE_NAME = c.TABLE_NAME AND t.TABLE_CATALOG = c.TABLE_CATALOG
+            WHERE t.TABLE_CATALOG = ?
+            ORDER BY t.TABLE_NAME, c.ORDINAL_POSITION;
             """
             conn = get_db_connection()
             cursor = conn.cursor()
-            cursor.execute(query, (config['database'],))
-
+            cursor.execute(query, db_name)
+            
             schema_dict = {}
+            types_dict = {}
             for row in cursor.fetchall():
-                table = row[0]
-                if table not in schema_dict:
-                    schema_dict[table] = []
-                schema_dict[table].append(f"{row[1]} ({row[2]})")
+                table_name, column_name, data_type, table_type = row
+                if table_name not in schema_dict:
+                    schema_dict[table_name] = []
+                schema_dict[table_name].append(f"{column_name} ({data_type})")
+                if table_name not in types_dict:
+                    types_dict[table_name] = "View" if 'VIEW' in table_type else "Table"
+            
+            for table_name, columns in schema_dict.items():
+                entity_type = types_dict.get(table_name, "Table")
+                schema_info.append(f"{entity_type} '{table_name}': {', '.join(columns)}")
 
-            schema_info = [f"Table '{t}': {', '.join(cols)}" for t, cols in schema_dict.items()]
-            return '\n'.join(schema_info) if schema_info else 'No tables found in database'
+            return '\n'.join(schema_info) if schema_info else 'No tables or views found in database'
 
     except Exception as e:
         return f"Error retrieving database schema: {e}"
