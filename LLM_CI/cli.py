@@ -6,9 +6,10 @@ Supports both direct prompts and prompt files.
 from __future__ import annotations
 
 import argparse
+import logging
 import os
 import sys
-import logging
+
 from Utils import get_llm_provider, process_prompt
 
 # Add current directory to path for imports (allows running from project root or LLM_CI directory)

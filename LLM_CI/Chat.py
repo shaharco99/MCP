@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 import sys
-import logging
 
 from Utils import (
     create_tool_message,
@@ -15,7 +15,8 @@ from Utils import (
     reset_chat_usage_log,
     system_message
 )
-LOG_LEVEL=os.getenv('LOG_LEVEL', 'ERROR').upper()
+
+LOG_LEVEL = os.getenv('LOG_LEVEL', 'ERROR').upper()
 logging.basicConfig(level=logging.LOG_LEVEL)
 
 # Initialize

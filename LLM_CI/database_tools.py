@@ -5,9 +5,9 @@ Allows the agent to generate and execute SQL queries based on user questions.
 from __future__ import annotations
 
 import json
+import logging
 import os
 from typing import Any, Dict, List, Optional, Tuple
-import logging
 
 from langchain.tools import tool
 
@@ -360,14 +360,14 @@ def get_database_schema() -> str:
             view_names = {row['table_name'] for row in views_result}
 
             for t, cols in schema_dict.items():
-                entity_type = "View" if t in view_names else "Table"
+                entity_type = 'View' if t in view_names else 'Table'
                 schema_info.append(f"{entity_type} '{t}': {', '.join(cols)}")
-            
+
             return '\n'.join(schema_info) if schema_info else 'No tables or views found in database'
 
         elif db_type == 'mysql':
             db_name = config['database'].replace('`', '``')
-            
+
             # Get tables
             tables_query = f"SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA = '{db_name}' AND TABLE_TYPE = 'BASE TABLE'"
             tables, error = execute_query(tables_query)
@@ -396,11 +396,11 @@ def get_database_schema() -> str:
             db_name = config['database']
             # Get tables and views with their columns
             query = """
-            SELECT 
-                t.TABLE_NAME, 
-                c.COLUMN_NAME, 
-                c.DATA_TYPE, 
-                t.TABLE_TYPE 
+            SELECT
+                t.TABLE_NAME,
+                c.COLUMN_NAME,
+                c.DATA_TYPE,
+                t.TABLE_TYPE
             FROM INFORMATION_SCHEMA.TABLES as t
             JOIN INFORMATION_SCHEMA.COLUMNS as c
                 ON t.TABLE_NAME = c.TABLE_NAME AND t.TABLE_CATALOG = c.TABLE_CATALOG
@@ -410,7 +410,7 @@ def get_database_schema() -> str:
             conn = get_db_connection()
             cursor = conn.cursor()
             cursor.execute(query, db_name)
-            
+
             schema_dict = {}
             types_dict = {}
             for row in cursor.fetchall():
@@ -419,10 +419,10 @@ def get_database_schema() -> str:
                     schema_dict[table_name] = []
                 schema_dict[table_name].append(f"{column_name} ({data_type})")
                 if table_name not in types_dict:
-                    types_dict[table_name] = "View" if 'VIEW' in table_type else "Table"
-            
+                    types_dict[table_name] = 'View' if 'VIEW' in table_type else 'Table'
+
             for table_name, columns in schema_dict.items():
-                entity_type = types_dict.get(table_name, "Table")
+                entity_type = types_dict.get(table_name, 'Table')
                 schema_info.append(f"{entity_type} '{table_name}': {', '.join(columns)}")
 
             return '\n'.join(schema_info) if schema_info else 'No tables or views found in database'

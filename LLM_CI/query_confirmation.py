@@ -5,6 +5,7 @@ Handles user interaction for query approval and result export.
 from __future__ import annotations
 
 import json
+import logging
 import os
 import re
 import sys
@@ -216,10 +217,10 @@ def handle_query_workflow(
     try:
         results_data = json.loads(results_json)
         if 'error' in results_data and results_data['error']:
-            print(f"\nQuery Error: {results_data['error']}", file=sys.stderr)
+            logging.error(f"\nQuery Error: {results_data['error']}")
             return None, None
     except json.JSONDecodeError:
-        print(f"\nQuery Error: Invalid response format", file=sys.stderr)
+        logging.error('\nQuery Error: Invalid response format')
         return None, None
 
     # Show results and ask about PDF
@@ -227,6 +228,6 @@ def handle_query_workflow(
     if QueryConfirmation.prompt_pdf_generation(results_json):
         pdf_path = QueryConfirmation.generate_and_save_pdf(results_json)
     else:
-        print('\nResults displayed in terminal.', file=sys.stderr)
+        logging.info('\nResults displayed in terminal.')
 
     return results_json, pdf_path
